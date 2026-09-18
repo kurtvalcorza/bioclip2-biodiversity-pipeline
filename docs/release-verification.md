@@ -45,7 +45,8 @@ CI runs `tools/validate_release_assets.py`, which checks:
 CI also runs `ruff check src tests tools`, `tools/build_notebook.py --check`, and the offline unit suite
 (`tests/test_pipeline.py`, `tests/test_adaptation.py`, `tests/test_role_helpers.py`,
 `tests/test_import_boundary.py`, `tests/test_notebook_parity.py`; injected backends and temporary manifests, no
-weights; the embedded sample's dataset digest is pinned). These are source/provenance and unit checks. They are
+weights and no model library — only Pillow, because decoding is the image validation; the embedded sample's dataset
+digest is pinned). These are source/provenance and unit checks. They are
 **not** execution evidence.
 
 ## Executor paths
