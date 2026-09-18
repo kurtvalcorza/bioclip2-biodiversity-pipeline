@@ -122,6 +122,7 @@ A known-failing default path in the supported runtime blocks release (REL11).
 | Notebook | Commit / notebook blob | Date (UTC) | Executor | Outcome |
 |---|---|---|---|---|
 | `bioclip2_biodiversity_colab.ipynb` | `a43fdf5` / `60e7655f` | 2026-09-18 | Local pre-flight harness (Windows, CPython 3.12.10, CPU, `google.colab` shim, pins pre-installed) | PASS — pre-flight only, **not** promotion evidence |
+| `bioclip2_biodiversity_colab.ipynb` | `22f2854` / `60e7655f` | 2026-09-18 | Kaggle fresh GPU container (`gcr.io/kaggle-gpu-images/python@sha256:37c64f7…`, CPython 3.12.13, Tesla T4), strict serial executor v1 | **PASS — supported clean-runtime qualification evidence.** Exact commit and fetched Git blob verified; empty Hub cache and no pre-staged snapshot; one expected interpreter restart after dependency installation; all 15 code cells completed. Repository remains Candidate pending an explicit maintainer promotion decision. |
 
 ## Recorded executions
 
@@ -133,12 +134,13 @@ runtime, not general estimates.
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
 | 2026-09-18 | `a43fdf5` / `60e7655f` | Local pre-flight harness (Windows, CPython 3.12.10, CPU float32, `open_clip 3.3.0`) | Default sample path (validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload); weights pre-staged, so `stage_missing_files` fetched 0 of 3 entries and `verify_snapshot` verified all 3 | 49.2 s | **PASSED** — 15/15 code cells; zero-shot 12/12; head-only adaptation 3,076 params in 15.9 s; test accuracy/macro-F1/AUROC 1.0 (n=12) against majority 0.25/0.1 and colour 0.25/0.1909; delta vs zero-shot 0.0; 6/6 held-out; reload parity 0.0. Pre-flight; hosted clean-runtime run still required |
+| 2026-09-18 | `22f2854` / `60e7655f` | Kaggle fresh GPU container, CPython 3.12.13, Tesla T4, `torch 2.14.0+cu130`, CUDA 13.0, `open_clip 3.3.0`; exact fetched blob verified; empty Hub cache | Default standalone path from an empty snapshot (install → expected restart → fetch and digest-verify → validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload) | 265.3 s | **PASSED** — 15/15 code cells after one expected restart; all 3 snapshot entries verified (1.71 GB staged); zero-shot 12/12; majority 0.25/0.1; colour 0.25/0.1909; head-only adaptation of 3,076 params in 3.18 s; test accuracy/macro-F1/AUROC 1.0 (n=12), delta vs zero-shot 0.0; 6/6 held-out; adapter reload parity 0.0; preserved outputs include the evaluation, predictions, embeddings, sample data, adapter, result, contact sheet and embedded images with hashes recorded by the executor. This is qualification evidence, not a maintainer promotion decision. |
 
 ## Current status
 
-The notebook source is complete and passes all static checks, including the generator parity checks (`--check` OK).
-A local pre-flight execution of the committed blob completed the whole default path on CPU, which catches defects but
-is **not** a supported runtime under REL1/REL10 — and it ran with the snapshot pre-staged, so the 1.71 GB
-download-and-stage leg of MOD1–MOD9 has **not** been exercised end to end and must be covered by the hosted run.
-The repository stays at **Candidate** until a Colab or fresh-container run of the exact release revision is recorded
-above.
+The notebook source passes all static checks, including generator parity (`--check` OK), and exact candidate commit
+`22f2854` / notebook blob `60e7655f` completed the supported clean-runtime procedure in a fresh Kaggle Tesla T4
+container. The run started with an empty Hub cache and snapshot, downloaded and digest-verified the full 1.71 GB
+model snapshot, completed all 15 code cells, and preserved hashed outputs. The clean-runtime execution gate is
+therefore satisfied for that exact candidate. The repository remains **Candidate** until the maintainer explicitly
+approves promotion to `Release-grade`; a later code or notebook change requires qualification of the new exact revision.
