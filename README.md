@@ -72,7 +72,7 @@ Tests are offline: injected backends and temporary manifests, never the weights.
 
 ## Release status
 
-**Candidate.** Static/unit checks — including the standalone generator parity checks (`tools/build_notebook.py --check`, `tests/test_notebook_parity.py`) — do not constitute clean-runtime notebook evidence. One local CPU pre-flight execution of the committed notebook is recorded in `docs/release-verification.md`; complete the supported clean-runtime procedure in that document against the exact release revision before calling the notebook release-grade.
+**Candidate — clean-runtime qualified, promotion pending.** Exact candidate commit `22f2854` / notebook blob `60e7655f` passed all 15 code cells in a fresh Kaggle Tesla T4 container with an empty cache and snapshot. The run downloaded and verified the complete 1.71 GB snapshot and preserved hashed output artifacts. See `docs/release-verification.md`. This qualification evidence does not itself promote the repository; `Release-grade` still requires an explicit maintainer decision.
 
 ## Licensing
 
