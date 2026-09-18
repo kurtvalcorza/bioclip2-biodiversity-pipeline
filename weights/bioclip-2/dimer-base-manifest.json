@@ -1,0 +1,25 @@
+{
+  "format": "dimer_hf_snapshot",
+  "formatVersion": 1,
+  "modelKey": "bioclip-2",
+  "modelId": "imageomics/bioclip-2",
+  "revision": "2957b322090f9cb17ae72c71981c7218a28d81e0",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 20723,
+      "sha256": "807e4daa2b3486bc542a7c796c84a117be02818e671c934a66cd1898c3c098c1"
+    },
+    {
+      "path": "open_clip_config.json",
+      "bytes": 534,
+      "sha256": "1bf947e96e943fe50efd5c3e26c37f843a2fa3c358967719a68c8a6d17ce68c8"
+    },
+    {
+      "path": "open_clip_model.safetensors",
+      "bytes": 1710517724,
+      "sha256": "b7b2bf6fbc95799e42630e394cf95803892ab447c1a8ab629dbc82fbeaf7dfef"
+    }
+  ],
+  "totalBytes": 1710538981
+}
