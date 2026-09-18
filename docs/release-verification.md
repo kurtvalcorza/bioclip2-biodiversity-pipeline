@@ -120,7 +120,7 @@ A known-failing default path in the supported runtime blocks release (REL11).
 
 | Notebook | Commit / notebook blob | Date (UTC) | Executor | Outcome |
 |---|---|---|---|---|
-| `bioclip2_biodiversity_colab.ipynb` | __LOCAL_ROW__ | | | |
+| `bioclip2_biodiversity_colab.ipynb` | `a43fdf5` / `60e7655f` | 2026-09-18 | Local pre-flight harness (Windows, CPython 3.12.10, CPU, `google.colab` shim, pins pre-installed) | PASS — pre-flight only, **not** promotion evidence |
 
 ## Recorded executions
 
@@ -131,10 +131,13 @@ runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-| __LOCAL_EXEC__ | | | | | |
+| 2026-09-18 | `a43fdf5` / `60e7655f` | Local pre-flight harness (Windows, CPython 3.12.10, CPU float32, `open_clip 3.3.0`) | Default sample path (validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload); weights pre-staged, so `stage_missing_files` fetched 0 of 3 entries and `verify_snapshot` verified all 3 | 49.2 s | **PASSED** — 15/15 code cells; zero-shot 12/12; head-only adaptation 3,076 params in 15.9 s; test accuracy/macro-F1/AUROC 1.0 (n=12) against majority 0.25/0.1 and colour 0.25/0.1909; delta vs zero-shot 0.0; 6/6 held-out; reload parity 0.0. Pre-flight; hosted clean-runtime run still required |
 
 ## Current status
 
 The notebook source is complete and passes all static checks, including the generator parity checks (`--check` OK).
+A local pre-flight execution of the committed blob completed the whole default path on CPU, which catches defects but
+is **not** a supported runtime under REL1/REL10 — and it ran with the snapshot pre-staged, so the 1.71 GB
+download-and-stage leg of MOD1–MOD9 has **not** been exercised end to end and must be covered by the hosted run.
 The repository stays at **Candidate** until a Colab or fresh-container run of the exact release revision is recorded
 above.
