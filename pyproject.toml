@@ -1,0 +1,42 @@
+[project]
+name = "bioclip2-biodiversity-pipeline"
+version = "0.1.0"
+description = "DIMER pipeline for BioCLIP 2 (imageomics/bioclip-2): zero-shot species classification, organism image embeddings and bounded species-classification fine-tuning"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { file = "LICENSE" }
+authors = [{ name = "Kurt Valcorza" }]
+dependencies = [
+  "torch==2.14.0",
+  "torchvision==0.29.0",
+  # BioCLIP 2 is published in open_clip's checkpoint format (`library_name: open_clip`); the CLIP
+  # module, the image transform and the BPE tokenizer come from this package, not from transformers.
+  "open_clip_torch==3.3.0",
+  # open_clip's own runtime dependencies, pinned so the standalone install is deterministic.
+  "timm==1.0.29",
+  "ftfy==6.3.1",
+  "regex==2026.9.10",
+  "huggingface-hub==1.32.0",
+  "safetensors==0.8.0",
+  "pillow==12.3.0",
+  "numpy==2.5.3",
+]
+[project.optional-dependencies]
+dev = ["pytest==8.4.2", "ruff==0.16.6"]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+[tool.hatch.build.targets.wheel]
+packages = ["src/bioclip2_biodiversity_pipeline"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["tutorials", "src/bioclip2_biodiversity_pipeline/sample_data.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
