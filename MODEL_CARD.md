@@ -19,7 +19,7 @@ date_published_source: "Hugging Face Hub repository creation date of the exact h
 > ⚠️ **Provided for research, training, and evaluation purposes only.** Model weights are redistributed unmodified under their upstream license, which controls your use, including any commercial use or redistribution; the accompanying code and notebooks are released under this repository's license. All of it is supplied **"as is"**, without warranty of any kind, and has not been validated for production, clinical, or safety-critical use. Running the notebooks downloads third-party weights and datasets governed by their own licenses and consumes compute on your own Colab/Kaggle account. To the maximum extent permitted by law, the maintainers of this repository and the DIMER platform accept no liability for any damages arising from their use. Hosting implies no affiliation with or endorsement by the original authors.
 
 > [!NOTE]
-> **A newer checkpoint exists.** The pinned upstream README declares `new_version: imageomics/bioclip-2.5-vith14`. This repository pins BioCLIP 2 (ViT-L/14) because that is the row in the DIMER fleet inventory; the 2.5 checkpoint is a different architecture (ViT-H/14) and is not exercised here.
+> **A newer checkpoint exists.** The pinned upstream README declares `new_version: imageomics/bioclip-2.5-vith14`. This repository pins BioCLIP 2 (ViT-L/14) because that is the checkpoint this repository was built to package; the 2.5 checkpoint is a different architecture (ViT-H/14) and is not exercised here.
 
 ---
 
@@ -161,9 +161,9 @@ The model must not be used to locate, track, target or facilitate the taking of 
 | Remote code | **Not required** — plain safetensors state dict into open_clip's own module; `trust_remote_code` is never passed |
 | Runtime | `open_clip_torch==3.3.0` (+ `timm`, `ftfy`, `regex`), not `transformers`; a DIMER runtime for this model is an open_clip runtime |
 | Upload format | `open_clip_model.safetensors` (1,710,517,724 bytes) + `open_clip_config.json`; the `.bin` twin must not be uploaded |
-| Compute | CPU serving is viable for embeddings and zero-shot (≈0.3 s per image on the recorded CPU); head-only adaptation runs on cached features; unfreezing the tower is where GPU budget and the domain-fine-tuning policy the fleet inventory calls for become material |
+| Compute | CPU serving is viable for embeddings and zero-shot (≈0.3 s per image on the recorded CPU); head-only adaptation runs on cached features; unfreezing the tower is where GPU budget and the domain-fine-tuning policy DIMER calls for become material |
 
-The fleet inventory records this row as "GPU-heavy" and lists a DIMER domain-fine-tuning recipe, a GPU budget and a replay/domain-shift policy as prerequisites. This repository's evidence bears on that: with a few dozen labelled images the right recipe is head-only on cached features, which is CPU-cheap and did not degrade a saturated zero-shot classifier, while unfreezing one tower block did. A profile that offers tower fine-tuning should require far more labelled data per class than the tutorial uses and should evaluate on an observation- or site-aware split.
+This profile is classed GPU-heavy, with a DIMER domain-fine-tuning recipe, a GPU budget and a replay/domain-shift policy as prerequisites. This repository's evidence bears on that: with a few dozen labelled images the right recipe is head-only on cached features, which is CPU-cheap and did not degrade a saturated zero-shot classifier, while unfreezing one tower block did. A profile that offers tower fine-tuning should require far more labelled data per class than the tutorial uses and should evaluate on an observation- or site-aware split.
 
 ## Runtime
 
