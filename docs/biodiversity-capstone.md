@@ -1,6 +1,6 @@
 # Philippine Biodiversity Field Survey capstone
 
-Status: **Candidate; hosted Colab T4 default path passed on 2026-09-28; the optional journeys and the attribution review are pending**. Revision **0.2.2-candidate**:
+Status: **Candidate; hosted Colab T4 default path and the threshold activity at lower/higher passed on 2026-09-28; one BYOD run and the attribution review are pending**. Revision **0.2.2-candidate**:
 review fixes BC-M1..M3 and BC-m1..m15 (0.2.0), then fixes from two hosted runs that stopped in
 `prepare`: an inherited Colab plotting backend (0.2.1) and an encoder-dependent byte digest for
 the synthetic blank control (0.2.2); see `release-verification.md`. This is

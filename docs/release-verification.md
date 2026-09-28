@@ -258,8 +258,8 @@ Journeys:
 | Journey | Verdict |
 |---|---|
 | Clean default (Run all, defaults) | **PASS** on this runtime |
-| Threshold activity at `lower` / `higher` | Not assessed in this run: only `canonical` was executed. The recorded neighbours are 0 (lower) and 0.999889 (higher). |
-| §11 re-run after the activity | Not assessed in this run |
+| Threshold activity at `lower` / `higher` | Not assessed in this run: only `canonical` was executed. The recorded neighbours are 0 (lower) and 0.999889 (higher). Assessed in the two follow-up runs below. |
+| §11 re-run after the activity | Not assessed in this run; assessed below |
 | BYOD (grouped or inference-only) | Not assessed in this run (default off) |
 
 Observations for the maintainer, none of which blocks the default path:
@@ -279,7 +279,41 @@ Evidence still required before this capstone can leave Candidate:
    one BYOD run (grouped or inference-only);
 4. the maintainer's review of photo attribution and use.
 
-Capstone executions so far: the 0.2.0- and 0.2.1-candidate runs failed in `prepare`, and the 0.2.2-candidate run passed the clean default path. Items 1 and 2 of the list above are met for notebook blob `fd96c48d`. Items 3 and 4 remain open.
+Capstone executions so far: the 0.2.0- and 0.2.1-candidate runs failed in `prepare`, and the 0.2.2-candidate run passed the clean default path. Items 1 and 2 of the list above are met for notebook blob `fd96c48d`. Items 3 and 4 remained open after that run; see the follow-up runs below.
+
+### Maintainer-supplied Colab executions of 0.2.2-candidate at `THRESHOLD_VIEW = lower` and `higher` — 2026-09-28
+
+| Item | `lower` run | `higher` run |
+|---|---|---|
+| File | `execution-evidence/2026-09-28/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_0.2.2-candidate_threshold-lower.ipynb`, byte for byte | `…_0.2.2-candidate_threshold-higher.ipynb`, byte for byte |
+| SHA-256 | `3f8ac6285d6de1dd3601a5ecedfefc8fd573cc32bfa2e52b1e6d966a2ae2a8cb` (9,014,662 bytes) | `bcd545e838d910983bc92f3245c7e2f3729e8b09c837d2a469d2fae016bace29` (10,356,135 bytes) |
+| Source match | All 36 cell ids and sources identical to blob `fd96c48d` except Colab's `# @title` line in `code-04` and the single form value in `code-26` | same |
+| Form change | `THRESHOLD_VIEW = 'lower'` | `THRESHOLD_VIEW = 'higher'` |
+| Executed | All 14 code cells, execution counts 1–14, no errors; §11 (`code-32`) ran after the activity | same |
+| Environment | Fresh install: ready after uv 1 s, venv 2 s, install 59 s | Warm runtime: the existing isolated environment was reused (venv 0 s, install 8 s) and verified, so a repeated Run all in a used runtime also passes |
+| Activity | Display threshold 0: 12/12 accepted, selective accuracy 1.000, 0 incorrect accepted (same as the locked 0.6202) | Display threshold 0.999889479: 7/12 accepted, selective accuracy 1.000, 5 referred, 0 incorrect accepted |
+| Activity is display-only | `display only` True; locked threshold reported as 0.6202107991 in both | same |
+| Unchanged results | Every model output is identical to the canonical run: after normalising the run directory and timings, the outputs of cells `code-07` to `code-25` and `code-29` match the canonical run exactly; adapter SHA-256 `3cd707f4…46dd` in all three runs | same |
+| §11 after the activity | Fresh-process reload (PID 2036 → 2084) max error 0.0, identical labels and referrals; `results.zip` 44 members, 65,581 bytes, all checks including 8-system metric recomputation passed | Reload PID 3634 → 3683, max error 0.0; `results.zip` 44 members, 65,613 bytes, all checks passed |
+| Evidence boundary | Saved outputs were inspected; execution was not independently repeated | same |
+
+The archive sizes differ from the canonical run's 65,619 bytes only because `activity.json` records
+the display view. In the `higher` run the activity figure shows referred photographs, and Matplotlib
+warned about the three missing CJK glyphs (observation 3 above).
+
+Journeys after these runs:
+
+| Journey | Verdict |
+|---|---|
+| Clean default (Run all, defaults) | **PASS** (canonical run) |
+| Threshold activity at `lower` / `higher` | **PASS**: display-only, official metrics unchanged |
+| §11 after the activity | **PASS** in both runs (as part of Run all, after `code-26`) |
+| Repeated Run all in a used runtime | **PASS** (`higher` run reused the environment) |
+| BYOD (grouped or inference-only) | Not assessed (optional, default off) |
+
+Items 1–3 of the evidence list above are met for blob `fd96c48d`, except the BYOD part of item 3.
+Open before the capstone can leave Candidate: one BYOD run and the maintainer's attribution
+review (item 4).
 
 ## Current status
 
