@@ -136,6 +136,60 @@ runtime, not general estimates.
 | 2026-09-18 | `a43fdf5` / `60e7655f` | Local pre-flight harness (Windows, CPython 3.12.10, CPU float32, `open_clip 3.3.0`) | Default sample path (validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload); weights pre-staged, so `stage_missing_files` fetched 0 of 3 entries and `verify_snapshot` verified all 3 | 49.2 s | **PASSED** — 15/15 code cells; zero-shot 12/12; head-only adaptation 3,076 params in 15.9 s; test accuracy/macro-F1/AUROC 1.0 (n=12) against majority 0.25/0.1 and colour 0.25/0.1909; delta vs zero-shot 0.0; 6/6 held-out; reload parity 0.0. Pre-flight; hosted clean-runtime run still required |
 | 2026-09-18 | `22f2854` / `60e7655f` | Kaggle fresh GPU container, CPython 3.12.13, Tesla T4, `torch 2.14.0+cu130`, CUDA 13.0, `open_clip 3.3.0`; exact fetched blob verified; empty Hub cache | Default standalone path from an empty snapshot (install → expected restart → fetch and digest-verify → validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload) | 265.3 s | **PASSED** — 15/15 code cells after one expected restart; all 3 snapshot entries verified (1.71 GB staged); zero-shot 12/12; majority 0.25/0.1; colour 0.25/0.1909; head-only adaptation of 3,076 params in 3.18 s; test accuracy/macro-F1/AUROC 1.0 (n=12), delta vs zero-shot 0.0; 6/6 held-out; adapter reload parity 0.0; preserved outputs include the evaluation, predictions, embeddings, sample data, adapter, result, contact sheet and embedded images with hashes recorded by the executor. This is qualification evidence, not a maintainer promotion decision. |
 
+
+## Philippine biodiversity capstone — review fixes, revision 0.2.0-candidate (2026-09-28)
+
+Scope: `tutorials/DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb`, a separate notebook
+with its own evidence; nothing in this section changes the original tutorial's record above.
+The review of PR head `771551b` (notebook blob `355f4e3f`) was a source inspection of an
+unexecuted notebook. It is archived with its probes and a per-finding fix report in
+`reviews/2026-09-28-notebook-review/`.
+
+| Finding | Severity | Fix | Regression test (`tests/test_capstone_review_fixes.py`) |
+|---|---|---|---|
+| BC-M1 head effectively equals zero-shot (lr 1e-4 × 80 steps on scale-100 weights) | Major | Predeclared grid 1e-4/1e-3/1e-2; validation selects rate and epoch; displacement and zero-shot agreement exported and shown | `test_head_learning_rate_grid_is_predeclared`, `test_head_can_leave_zero_shot_when_validation_supports_it`, `test_adapt_head_reports_selection_and_distance_from_zero_shot`, `test_notebook_explains_rate_selection_and_shows_head_record` |
+| BC-M2 SigLIP 2 text not lowercased, not padded to 64 tokens | Major | Documented convention applied and asserted; `siglip_preprocessing.json` | `test_siglip_stage_uses_documented_lowercase_64_token_text` |
+| BC-M3 macro-F1 bootstrap counts an absent species as F1 = 0 | Major | Species-stratified record bootstrap; observer-cluster interval removed | `test_perfect_classifier_has_degenerate_macro_f1_interval`, `test_exported_intervals_are_species_stratified` |
+| BC-m1 runtime/resources hidden, total understated | Minor | Bootstrap timings, dataset download, `runtime_summary.csv` displayed | `test_runtime_summary_reports_bootstrap_downloads_and_stages`, `test_notebook_records_bootstrap_timing_and_renders_runtime` |
+| BC-m2 archive checks missing from the record | Minor | `verify_archive` (CRC, digests, paths, exclusions, metric recomputation) shown in §11 | `test_archive_verification_is_real_and_displayed` |
+| BC-m3 parity across different batch compositions | Minor | Same-batch repeat; reload probe embedded as one batch; cross-batch difference recorded | `test_repeat_and_reload_probe_use_matching_batches`, `test_reload_expectation_comes_from_the_matched_batch` |
+| BC-m4 threshold activity offsets ±0.1, 4-decimal display | Minor | Adjacent validation candidates; 10-significant-digit thresholds; accepted counts | `test_activity_uses_adjacent_validation_candidates` |
+| BC-m5 error-panel categories unlabelled, dropped silently | Minor | Named categories, fallback selection, `error_panel.csv` | `test_error_panel_names_categories_and_falls_back`, `test_error_panel_annotations_and_csv` |
+| BC-m6 observer concentration undisclosed | Minor | `observer_roles.csv`; manifest-computed prose | `test_observer_concentration_and_audit_from_frozen_manifest`, `test_learner_text_discloses_concentration_taxonomy_and_location_limits` |
+| BC-m7 audit display incomplete; crop not shown | Minor | `dataset_audit.csv`, crop boxes on the contact sheet, crop limitations surfaced | same two tests as BC-m6 |
+| BC-m8 §16 statements; subspecies record undisclosed in the notebook | Minor | Location, reconstruction and counting statements; subspecies disclosure | `test_learner_text_discloses_concentration_taxonomy_and_location_limits` |
+| BC-m9 probes shown for the head only | Minor | All eight systems listed per probe | `test_probes_listed_for_every_system` |
+| BC-m10 `FileLink` downloads | Minor | Files-panel paths; optional `DOWNLOAD_RESULTS` | `test_no_filelink_objectives_listed_and_revision_consistent` |
+| BC-m11 majority top-2 is a tie-break artefact | Minor | Reported as undefined; parity check updated | `test_majority_top2_is_undefined_and_parity_still_holds` |
+| BC-m12 risk plot doubles back; `tab10` palette | Minor | Sorted rows, separate canonical marker, Okabe-Ito palette | `test_risk_rows_sorted_and_palette_colour_blind_safe` |
+| BC-m13 objectives not listed; head config not shown | Minor | Nine objectives in §1; `head_training.json` shown | `test_no_filelink_objectives_listed_and_revision_consistent`, `test_notebook_explains_rate_selection_and_shows_head_record` |
+| BC-m14 specification drift | Minor | Disk and BYOD-group deviations were already recorded in `biodiversity-capstone.md`; folder-map and learning-rate deviations added | documentation only |
+| BC-m15 BYOD re-download, enclosing folder, bad CSV | Minor | Snapshot hard links; enclosing folder accepted; actionable CSV/layout errors | `test_byod_accepts_one_enclosing_folder_and_explains_bad_csv` |
+
+Suggestions: BC-S1 (post-release subset) is implemented as a descriptive audit row, and BC-S3
+(network hosts) in §2. BC-S2 (verify the synthetic blank by decoded pixels) and BC-S4 (branch
+Colab badge) are not implemented: the blank's byte digest is part of the frozen manifest, and
+the badge must point at `main` once merged.
+
+Offline evidence for this revision (2026-09-28, Windows, CPython 3.12.14, CPU torch 2.13.0,
+numpy 2.5.3, Pillow 12.3.0): 99 tests pass; with PyTorch hidden, as in CI, 94 pass and 5 skip;
+the 22 new tests all fail on `771551b`. Ruff, `validate_release_assets.py` and both generator
+parity checks pass. No model weights, SigLIP tokenizer or iNaturalist photograph was loaded,
+so none of the fixes has been observed with real models. The learning-rate grid in
+particular has been exercised only on synthetic features.
+
+Evidence still required before this capstone can leave Candidate:
+
+1. a fresh Colab T4 **Run all** of the exact commit with default settings, recording the notebook
+   blob, all 14 code cells, runtime, peak RAM/VRAM and the observed metrics;
+2. confirmation in that run that the SigLIP text is 64 tokens, that the selected learning rate
+   and epoch and `head_equals_zero_shot` are reported, and that reload parity passes;
+3. the threshold activity run at `lower` and `higher` followed by the §11 cell, and at least
+   one BYOD run (grouped or inference-only);
+4. the maintainer's review of photo attribution and use.
+
+No capstone execution is recorded in the tables above.
+
 ## Current status
 
 The notebook source passes all static checks, including generator parity (`--check` OK), and exact candidate commit

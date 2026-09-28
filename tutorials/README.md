@@ -43,6 +43,10 @@ learning artifact using DIMER Notebook Specification 2.2. Open the local file in
 The new capstone remains **Candidate** until that hosted run and its exported evidence are reviewed.
 The original tutorial and its evidence remain separate.
 
+| Notebook | Revision | Review | Hosted execution | Release status |
+|---|---|---|---|---|
+| `DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb` | `0.2.0-candidate` | 2026-09-28 review findings BC-M1..M3 and BC-m1..m15 fixed; offline tests only | none recorded; fresh Colab T4 Run all pending | Candidate — see `../docs/release-verification.md` |
+
 The investigation compares majority, colour, nearest-neighbour, BioCLIP 2 and SigLIP 2 systems
 on 56 licensed Philippine bird photographs. Epoch and referral-policy selection use validation
 data before test metrics appear. It exports attribution, predictions, metrics, a safetensors

@@ -1,8 +1,17 @@
 # Philippine Biodiversity Field Survey capstone
 
-Status: **Candidate; hosted Colab T4 execution pending**. This is a new notebook, separate
-from the already-qualified original biodiversity tutorial. Local software tests are not
-model-performance or hosted-runtime evidence.
+Status: **Candidate; hosted Colab T4 execution pending**. Revision **0.2.0-candidate**
+(review fixes BC-M1..M3 and BC-m1..m15 of 2026-09-28; see `release-verification.md`). This is
+a new notebook, separate from the already-qualified original biodiversity tutorial. Local
+software tests are not model-performance or hosted-runtime evidence.
+
+Revision 0.2.0-candidate, local verification on 2026-09-28 (Windows, CPython 3.12.14, CPU
+torch 2.13.0): 99 tests pass (77 existing, 3 of them updated, plus 22 in
+`tests/test_capstone_review_fixes.py`, all 22 of which fail on `771551b`). With PyTorch
+hidden, as in CI, 94 pass and 5 skip. Ruff, release-asset validation and both generator
+parity checks pass. No model weights or photographs were loaded for this revision.
+
+The 0.1 build record below is kept for history.
 
 Local verification on 2026-09-27: the repository baseline was 47 passing tests; the final
 suite passed 77 tests, including CPU head fitting/export and synthetic report integration.
@@ -35,16 +44,32 @@ Visual composition review is not expert taxonomic verification.
 
 - Eight systems: majority, RGB colour centroid, BioCLIP 5-NN, common/scientific-name
   zero-shot prompts for each of two models, and a BioCLIP head.
-- The head starts from scientific-text weights; only its weights and bias train. Epoch
-  zero and 20 epochs compete by minimum validation cross-entropy, with earlier ties.
+- The head starts from scientific-text weights scaled by the logit scale, so epoch 0 is the
+  BioCLIP scientific zero-shot classifier; only its weights and bias train. Each rate in the
+  predeclared grid 1e-4, 1e-3, 1e-2 is fitted for 20 epochs from the same start, and the
+  (rate, epoch) pair with minimum validation cross-entropy is selected (ties: earlier epoch,
+  then smaller rate). `head_training.json` reports the selection, whether the head equals
+  zero-shot, and its weight/logit displacement on train and validation.
 - The validation-selected margin policy targets 80% selective accuracy at 50% minimum
   coverage. If infeasible, its stated fallback remains visible. Test results are unfiltered
   for the primary comparison. A display-only threshold activity cannot change that policy.
 - Accuracy, fixed-vocabulary macro-F1, top-2, per-class and confusion results accompany
-  both record-bootstrap and observer-cluster-bootstrap intervals. Tiny samples and
-  unresolved model-pretraining overlap limit interpretation.
+  species-stratified record-bootstrap intervals (2,000 resamples, support fixed at three per
+  species). The unstratified and observer-cluster variants were removed from the exports:
+  with 12 test photographs they drop a species in 12.5% of record resamples, giving a
+  classifier that is right on every photograph a macro-F1 lower bound of 0.75, and the
+  observer-cluster variant has only four clusters. Majority top-2 is undefined. Tiny samples,
+  four test photographers and unresolved model-pretraining overlap limit interpretation.
+- SigLIP 2 prompts follow its documented convention: lowercased label text in
+  "This is a photo of {label}." padded to 64 tokens (`siglip_preprocessing.json`).
 - Fresh-process reload reconstructs image features and checks scores, top-1/top-2 and
-  referral decisions. Per-stage source/config/product hashes refuse stale prerequisites.
+  referral decisions against the same two test records embedded as one batch in the
+  `bioclip-zero-shot` stage; the repeat-embedding check uses the same batch composition,
+  and the cross-batch-size difference is recorded descriptively. Per-stage
+  source/config/product hashes refuse stale prerequisites.
+- `runtime_summary.csv` reports bootstrap, dataset and model download, and per-stage
+  seconds with peak host RAM and VRAM; `archive_verification.json` records the checks on the
+  written ZIP (it cannot be inside the archive it verifies).
 - Final CSV metrics are recomputed from exported predictions; archive CRCs and member
   digests are checked. Completion notes are optional, not required submissions.
 
@@ -66,6 +91,13 @@ Visual composition review is not expert taxonomic verification.
    strict loader. It is not interchangeable with the original pipeline's adapter format.
 6. The isolated CUDA dependency environment needs more than the proposed 5 GB allowance;
    12 GiB is the initial preflight minimum, still subject to hosted measurement.
+7. The `<label>/<image>` BYOD folder layout needs a label → scientific-name JSON map because
+   folders cannot carry scientific names; a single enclosing top-level folder is accepted.
+   Folder uploads carry no observer groups and therefore run as descriptive inference only.
+8. The capstone head selects its learning rate on validation from a predeclared grid
+   instead of using the original pipeline's single 1e-4 default. With a head initialised at
+   logit scale × text, 80 steps at 1e-4 cannot move a logit by more than about 0.2, which
+   would make the head-versus-zero-shot comparison uninformative (review finding BC-M1).
 
 ## Qualification procedure
 

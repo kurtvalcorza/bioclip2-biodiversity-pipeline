@@ -1,0 +1,138 @@
+{
+  "siglip_prompt_lines": [
+    "18: prompts = [f\"This is a photo of {c[field]}.\" for c in manifest[\"classes\"]]",
+    "24: padding=\"max_length\","
+  ],
+  "siglip_prompts_lowercased": false,
+  "siglip_max_length_64_passed": false,
+  "siglip_class_names": [
+    [
+      "Philippine Pied-Fantail",
+      "Rhipidura nigritorquis"
+    ],
+    [
+      "Philippine Bulbul",
+      "Hypsipetes philippinus"
+    ],
+    [
+      "Coleto",
+      "Sarcops calvus"
+    ],
+    [
+      "Philippine Serpent-Eagle",
+      "Spilornis holospilus"
+    ]
+  ],
+  "CONFIG": "CONFIG = {\n    \"seed\": 42,\n    \"epochs\": 20,\n    \"learning_rate\": 0.0001,\n    \"weight_decay\": 0.01,\n    \"batch_size\": 8,\n    \"precision\": \"float32\",\n    \"k\": 5,\n    \"bootstrap\": 2000,\n    \"atol\": 1e-6,\n    \"rtol\": 1e-5,\n}",
+  "head_init_and_steps": [
+    "533: head.weight.copy_(torch.tensor(text, dtype=torch.float32) * scale)",
+    "540: for epoch in range(epochs + 1):",
+    "542: for ix in torch.randperm(len(train_y)).split(8):",
+    "550: if val_loss < best_loss:"
+  ],
+  "macro_f1_zero_convention": [
+    "406: f1 = 2 * tp / (support + predicted) if support + predicted else 0.0",
+    "414: \"macro_f1\": float(np.mean([p[\"f1\"] for p in per_class])),"
+  ],
+  "bootstrap_resampling": [
+    "427: rng = np.random.default_rng(42)",
+    "434: index = np.concatenate([np.flatnonzero(groups == g) for g in rng.choice(unique, len(unique))])"
+  ],
+  "show_record_filter": [
+    "91: rows = [(key, item) for key, item in value.items() if isinstance(item, (str, float, int, bool)) or item is None]"
+  ],
+  "run_summary_top_level_keys": [
+    "status",
+    "environment",
+    "models",
+    "policy",
+    "metrics",
+    "stages",
+    "elapsed_seconds",
+    "limitations"
+  ],
+  "run_summary_keys_rendered_by_show_record": [
+    "status",
+    "elapsed_seconds"
+  ],
+  "elapsed_seconds_definition": [
+    "986: receipts = [core.read_json(root / \"receipts\" / f\"{s}.json\") for s in STAGES[:-1]]",
+    "1026: \"elapsed_seconds\": sum(r[\"seconds\"] for r in receipts),"
+  ],
+  "bootstrap_seconds_written_outside_outputs": [
+    "28: (ROOT / 'bootstrap.json').write_text(json.dumps({'seconds': BOOTSTRAP_SECONDS, 'gpu': gpu.stdout.strip()}), encoding='utf-8')"
+  ],
+  "dataset_download_timing_recorded": false,
+  "verification_json_keys": [
+    "status",
+    "csv_counts",
+    "prediction_metric_parity",
+    "reload",
+    "dataset",
+    "hosted_release_review",
+    "attribution_review"
+  ],
+  "archive_verification_excluded_from_zip": true,
+  "archive_verification_displayed_in_notebook": false,
+  "activity_offsets": [
+    "5: offset = {'lower': -0.1, 'canonical': 0.0, 'higher': 0.1}[THRESHOLD_VIEW]",
+    "6: display_threshold = min(1.0, max(0.0, threshold + offset))"
+  ],
+  "show_table_number_format": [
+    "70: return f'{float(value):.4f}' if '.' in value or 'e-' in value else value"
+  ],
+  "reload_expected_source": [
+    "375: for start in range(0, len(records), 8):",
+    "411: for start in range(0, len(records), 8):",
+    "414: repeated = np.asarray(pipe.embed_images(images(root, records[:1]))[\"embeddings\"], dtype=np.float32)",
+    "472: for start in range(0, len(records), 8):",
+    "776: np.save(out / \"reload_expected.npy\", head[:2])",
+    "908: features = np.array(pipe.embed_images(images(root, selected))[\"embeddings\"], dtype=np.float32)",
+    "911: np.load(out / \"reload_expected.npy\", allow_pickle=False),"
+  ],
+  "parity_tolerances": [
+    "48: \"atol\": 1e-6,",
+    "49: \"rtol\": 1e-5,",
+    "514: def parity(",
+    "515: original: np.ndarray, reloaded: np.ndarray, threshold: float, atol: float = 1e-6, rtol: float = 1e-5"
+  ],
+  "error_panel_annotation_has_category_name": false,
+  "error_panel_dedupe": [
+    "55: for j in candidate[:1]:",
+    "56: if int(j) not in chosen:"
+  ],
+  "majority_scores": [
+    "158: majority[:, winner] = 1"
+  ],
+  "canonical_row_appended_after_sweep": [
+    "800: rows.extend("
+  ],
+  "probe_predictions_systems": [
+    "839: probe_rows = prediction_rows(records, probes, classes, scores, \"bioclip_head\", policy[\"threshold\"])"
+  ],
+  "md_mentions": {
+    "endemic_status_vs_location_exposure": false,
+    "must_not_reconstruct_coordinates": false,
+    "does_not_count_individuals": false,
+    "abundance_or_population": true,
+    "learning_objectives_listed": false,
+    "subspecies_record_disclosed": false,
+    "centre_crop_view_offered_to_learner": false
+  },
+  "contact_sheet_shows_full_frame": [
+    "116: ax.imshow(im)",
+    "93: result.append(ImageOps.exif_transpose(image).convert(\"RGB\").copy())"
+  ],
+  "filelink_absolute_paths": [
+    "104: display(FileLink(str(path)))",
+    "129: display(FileLink(str(path)))run_stage('prepare')",
+    "167: display(FileLink(str(ROOT / 'outputs' / 'results.zip')))",
+    "208: display(FileLink(str(ROOT / 'outputs' / 'results.zip')))"
+  ],
+  "disk_requirement": [
+    "27: if shutil.disk_usage(ROOT).free < 12 * 1024**3:"
+  ],
+  "pca_palette": [
+    "511: color=plt.get_cmap(\"tab10\")(c),"
+  ]
+}

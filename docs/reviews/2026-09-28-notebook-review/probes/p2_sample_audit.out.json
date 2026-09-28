@@ -1,0 +1,203 @@
+{
+  "classes": [
+    {
+      "label": "philippine_pied_fantail",
+      "taxon_id": 339682,
+      "scientific_name": "Rhipidura nigritorquis",
+      "common_name": "Philippine Pied-Fantail"
+    },
+    {
+      "label": "philippine_bulbul",
+      "taxon_id": 144916,
+      "scientific_name": "Hypsipetes philippinus",
+      "common_name": "Philippine Bulbul"
+    },
+    {
+      "label": "coleto",
+      "taxon_id": 15002,
+      "scientific_name": "Sarcops calvus",
+      "common_name": "Coleto"
+    },
+    {
+      "label": "philippine_serpent_eagle",
+      "taxon_id": 5160,
+      "scientific_name": "Spilornis holospilus",
+      "common_name": "Philippine Serpent-Eagle"
+    }
+  ],
+  "records": 56,
+  "probes": [
+    [
+      "outside_bird_flowerpecker",
+      "outside_candidate_bird",
+      "Dicaeum australe"
+    ],
+    [
+      "outside_bird_sparrow",
+      "outside_candidate_bird",
+      "Passer montanus"
+    ],
+    [
+      "nonbird_butterfly",
+      "non_bird",
+      "Danaus chrysippus"
+    ],
+    [
+      "nonbird_snail",
+      "non_bird",
+      "Lissachatina fulica"
+    ],
+    [
+      "blank_control",
+      "blank",
+      "Not applicable"
+    ]
+  ],
+  "per_species_split_images_observers": {
+    "philippine_pied_fantail": {
+      "train": [
+        8,
+        8
+      ],
+      "validation": [
+        3,
+        3
+      ],
+      "test": [
+        3,
+        3
+      ]
+    },
+    "philippine_bulbul": {
+      "train": [
+        8,
+        4
+      ],
+      "validation": [
+        3,
+        2
+      ],
+      "test": [
+        3,
+        3
+      ]
+    },
+    "coleto": {
+      "train": [
+        8,
+        5
+      ],
+      "validation": [
+        3,
+        3
+      ],
+      "test": [
+        3,
+        2
+      ]
+    },
+    "philippine_serpent_eagle": {
+      "train": [
+        8,
+        5
+      ],
+      "validation": [
+        3,
+        2
+      ],
+      "test": [
+        3,
+        2
+      ]
+    }
+  },
+  "observers_total": 23,
+  "observers_in_multiple_roles": [],
+  "observers_per_role": {
+    "train": 14,
+    "validation": 5,
+    "test": 4
+  },
+  "validation_photos_by_observer": {
+    "pcjce_07": 6,
+    "spacegecko": 2,
+    "squiresk": 2,
+    "jeanpaulboerekamps": 1,
+    "carl_ramirez": 1
+  },
+  "validation_largest_observer_share": 0.5,
+  "test_photos_by_observer": {
+    "caseyfication": 6,
+    "peterq": 3,
+    "pchi45": 2,
+    "adamwargon": 1
+  },
+  "test_largest_observer_share": 0.5,
+  "max_photos_per_observer_per_species": 3,
+  "duplicates_id": 0,
+  "duplicates_photo_id": 0,
+  "duplicates_observation_id": 0,
+  "duplicates_sha256": 0,
+  "duplicates_perceptual_hash": 0,
+  "min_pairwise_dhash_hamming": 11,
+  "licences": {
+    "cc-by": 57,
+    "cc0": 4
+  },
+  "quality_grade": {
+    "research": 56
+  },
+  "wild": {
+    "true": 56
+  },
+  "taxon_rank_not_exact_species": [
+    [
+      "inat-344854106-628387309",
+      "coleto",
+      "Sarcops calvus melanonotus",
+      "verified_subspecies_ancestor",
+      "train"
+    ]
+  ],
+  "download_hosts": {
+    "inaturalist-open-data.s3.amazonaws.com": 60
+  },
+  "total_image_bytes": 23919550,
+  "max_image_bytes": 1184993,
+  "observed_on_range": [
+    "2010-04-19",
+    "2026-06-30"
+  ],
+  "observed_on_by_year": {
+    "2010": 1,
+    "2014": 2,
+    "2015": 1,
+    "2016": 3,
+    "2018": 2,
+    "2019": 4,
+    "2020": 1,
+    "2021": 1,
+    "2022": 7,
+    "2023": 11,
+    "2024": 6,
+    "2025": 6,
+    "2026": 11
+  },
+  "forbidden_location_keys_present": [],
+  "visual_review": {
+    "status": "composition_only_reviewed",
+    "scope": "Fixed centre-crop contact sheets visually inspected; downloaded originals machine decoded and hash checked. No manual full-frame inspection or model predictions consulted.",
+    "limitations": "Not expert taxonomic verification. Difficult/small birds retained.",
+    "crop_limitations": [
+      {
+        "observation_id": 217651776,
+        "note": "Fantail small and difficult to locate in centre crop."
+      },
+      {
+        "observation_id": 339451045,
+        "note": "Outside-species sparrow small in centre crop."
+      }
+    ],
+    "maintainer_attribution_review": "pending"
+  }
+}

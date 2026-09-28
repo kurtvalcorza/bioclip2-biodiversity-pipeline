@@ -1,0 +1,33 @@
+{
+  "test_records": 12,
+  "test_observers": {
+    "peterq": 3,
+    "caseyfication": 6,
+    "pchi45": 2,
+    "adamwargon": 1
+  },
+  "full_sample_macro_f1_perfect": 1.0,
+  "record_bootstrap": {
+    "draws": 2000,
+    "fraction_resamples_missing_a_class": 0.124,
+    "macro_f1_low": 0.75,
+    "macro_f1_high": 1.0,
+    "accuracy_interval": [
+      1.0,
+      1.0
+    ],
+    "exact_probability_missing_a_class": 0.12524080276489258
+  },
+  "observer_cluster_bootstrap_exact": {
+    "clusters": 4,
+    "draws_enumerated": 256,
+    "macro_f1_distribution": {
+      "0.25": 0.00390625,
+      "0.5": 0.05859375,
+      "0.75": 0.00390625,
+      "1.0": 0.93359375
+    },
+    "macro_f1_2.5pct": 0.5,
+    "macro_f1_97.5pct": 1.0
+  }
+}

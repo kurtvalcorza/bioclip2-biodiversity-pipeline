@@ -19,6 +19,7 @@ import numpy as np
 from PIL import Image, ImageOps
 
 ROLES = ("train", "validation", "test")
+BYOD_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 FORBIDDEN = {
     "latitude",
     "longitude",
@@ -140,13 +141,27 @@ def prepare_byod(
         names = [m.filename for m in members if not m.is_dir()]
         if len(names) != len(set(names)):
             raise ValueError("Duplicate ZIP member")
-        if "labels.csv" in names:
-            rows = list(csv.DictReader(io.StringIO(bundle.read("labels.csv").decode("utf-8-sig"))))
+        csv_name = next((n for n in names if n == "labels.csv" or n.endswith("/labels.csv")), None)
+        if csv_name is not None:
+            reader = csv.DictReader(io.StringIO(bundle.read(csv_name).decode("utf-8-sig")))
+            missing = {"id", "image", "label"} - set(reader.fieldnames or [])
+            if missing:
+                raise ValueError(
+                    f"labels.csv lacks required column(s) {sorted(missing)}; expected "
+                    "id,image,label,scientific_name,observer_group"
+                )
+            prefix = csv_name[: -len("labels.csv")]
+            rows = [{**row, "image": prefix + (row.get("image") or "")} for row in reader]
         else:
-            for name in sorted(names):
+            image_names = [n for n in sorted(names) if Path(n).suffix.lower() in BYOD_SUFFIXES]
+            tops = {Path(n).parts[0] for n in image_names}
+            # Zipping a folder usually adds one top-level directory: accept <top>/<label>/<image>.
+            strip = len(tops) == 1 and image_names and all(len(Path(n).parts) == 3 for n in image_names)
+            for name in image_names:
                 path = Path(name)
-                if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"} and len(path.parts) == 2:
-                    label = path.parts[0]
+                parts = path.parts[1:] if strip else path.parts
+                if len(parts) == 2:
+                    label = parts[0]
                     rows.append(
                         {
                             "id": f"byod_{len(rows):04d}",
@@ -155,8 +170,13 @@ def prepare_byod(
                             "scientific_name": class_prompts.get(label, ""),
                         }
                     )
-        if not 1 <= len(rows) <= 5000:
-            raise ValueError("BYOD has no images or exceeds 5000 images")
+        if not rows:
+            raise ValueError(
+                "BYOD has no images: use <label>/<image> folders (optionally inside one top-level "
+                "folder) or a labels.csv with id,image,label,scientific_name,observer_group"
+            )
+        if len(rows) > 5000:
+            raise ValueError("BYOD exceeds 5000 images")
         for row in rows:
             check_private(row)
             if row["image"] not in names:
@@ -418,20 +438,36 @@ def metrics(y_true: np.ndarray, scores: np.ndarray) -> dict:
     }
 
 
-def bootstrap(y: np.ndarray, scores: np.ndarray, groups=None, n_boot: int = 2000) -> dict:
-    """Percentile intervals; optional observer-cluster resampling keeps correlated photos together."""
+def bootstrap(
+    y: np.ndarray, scores: np.ndarray, groups=None, n_boot: int = 2000, stratify: bool = False
+) -> dict:
+    """Percentile intervals over test records.
+
+    `stratify=True` resamples records within each reference class, so every resample keeps the
+    per-class support of the test set. Macro-F1 averages over the fixed class vocabulary and scores
+    an absent class as 0, so unstratified record or cluster resampling of a tiny balanced test set
+    mixes "a species went missing from the resample" into the interval. The canonical capstone
+    therefore uses the stratified form. `groups` (whole-cluster resampling) remains available for
+    diagnostics but is not interpretable with only a handful of clusters.
+    """
     y = np.asarray(y)
     scores = checked_scores(scores, len(y))
     if len(y) == 0 or n_boot < 2:
         raise ValueError("Bootstrap needs observations and >=2 draws")
+    if stratify and groups is not None:
+        raise ValueError("Choose stratified record resampling or cluster resampling, not both")
     rng = np.random.default_rng(42)
     groups = np.arange(len(y)) if groups is None else np.asarray(groups)
     if len(groups) != len(y):
         raise ValueError("Bootstrap groups misaligned")
     unique = np.unique(groups)
+    strata = [np.flatnonzero(y == c) for c in np.unique(y)]
     values = []
     for _ in range(n_boot):
-        index = np.concatenate([np.flatnonzero(groups == g) for g in rng.choice(unique, len(unique))])
+        if stratify:
+            index = np.concatenate([rng.choice(members, len(members)) for members in strata])
+        else:
+            index = np.concatenate([np.flatnonzero(groups == g) for g in rng.choice(unique, len(unique))])
         result = metrics(y[index], scores[index])
         values.append([result["accuracy"], result["macro_f1"]])
     low, high = np.quantile(values, [0.025, 0.975], axis=0)

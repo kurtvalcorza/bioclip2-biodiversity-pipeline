@@ -36,7 +36,9 @@ def fixture_root(tmp_path):
     features = np.eye(768, dtype=np.float32)[labels]
     np.save(out / "image_embeddings.npy", features)
     np.save(out / "text_embeddings.npy", np.eye(768, dtype=np.float32)[:2])
-    core.write_json(out / "embedding_identity.json", {"logit_scale": 2.0})
+    test_ids = [r["id"] for r in records if r["split"] == "test"][:2]
+    core.write_json(out / "embedding_identity.json", {"logit_scale": 2.0, "reload_probe_ids": test_ids})
+    np.save(out / "reload_probe_features.npy", features[[r["id"] in test_ids for r in records]])
     return out, records, features
 
 
@@ -45,7 +47,8 @@ def test_head_epoch_zero_is_valid_candidate():
     features = np.eye(768, dtype=np.float32)[:2]
     labels = np.array([0, 1])
     tensors, history, selected = run.fit_head(features, labels, features, labels, features, 2, epochs=0)
-    assert selected == 0 and len(history) == 1
+    assert selected["epoch"] == 0 and len(history) == len(run.CONFIG["learning_rates"])
+    assert selected["learning_rate"] == min(run.CONFIG["learning_rates"])  # ties keep the smaller rate
     np.testing.assert_allclose(tensors["head.weight"].numpy(), features * 2)
     assert run.head_scores(features, tensors).argmax(1).tolist() == [0, 1]
 
@@ -57,9 +60,14 @@ def test_adapt_export_refuses_tampering_and_wrong_class_order(tmp_path):
     policy = core.read_json(out / "selected_policy.json")
     assert policy["locked_before_test"] and policy["selection_split"] == "validation"
     history = run.read_csv(out / "training_history.csv")
-    assert len(history) == 21
-    selected = min(history, key=lambda r: float(r["validation_loss"]))
+    rates = run.CONFIG["learning_rates"]
+    assert len(history) == 21 * len(rates)
+    selected = min(
+        history,
+        key=lambda r: (float(r["validation_loss"]), int(r["epoch"]), rates.index(float(r["learning_rate"]))),
+    )
     assert policy["selected_epoch"] == int(selected["epoch"])
+    assert policy["selected_learning_rate"] == float(selected["learning_rate"])
     tensors, manifest = run.load_head(out / "adapter", ["c0", "c1"])
     assert manifest["training"]["trainable_parameters"] == 2 * 769
     np.testing.assert_allclose(run.head_scores(features, tensors), np.load(out / "head_scores.npy"))
@@ -85,7 +93,9 @@ def test_synthetic_evaluation_triage_and_archive_parity(tmp_path, monkeypatch):
     monkeypatch.setattr(
         core,
         "bootstrap",
-        lambda y, s, groups=None, n_boot=2000: original_bootstrap(y, s, groups=groups, n_boot=30),
+        lambda y, s, groups=None, n_boot=2000, stratify=False: original_bootstrap(
+            y, s, groups=groups, n_boot=30, stratify=stratify
+        ),
     )
     run.evaluate(tmp_path)
     assert len(run.read_csv(out / "predictions.csv")) == 8 * 6
