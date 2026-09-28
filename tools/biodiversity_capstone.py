@@ -19,8 +19,13 @@ import zipfile
 from pathlib import Path
 
 import biodiversity_core as core
-import matplotlib
-import numpy as np
+
+# Stage processes render to files only. A notebook kernel exports its own inline backend
+# (Colab: MPLBACKEND=module://matplotlib_inline.backend_inline), which does not exist in the
+# isolated environment and makes `import matplotlib` itself fail, so override it first.
+os.environ["MPLBACKEND"] = "Agg"
+import matplotlib  # noqa: E402
+import numpy as np  # noqa: E402
 
 matplotlib.use("Agg")
 
@@ -53,7 +58,7 @@ CONFIG = {
     "atol": 1e-6,
     "rtol": 1e-5,
 }
-NOTEBOOK_REVISION = "0.2.0-candidate"
+NOTEBOOK_REVISION = "0.2.1-candidate"
 # Transformers SigLIP 2 guidance: lowercased label text, the pipeline template and fixed
 # padding to 64 tokens, which is how the model was trained.
 SIGLIP_TEMPLATE = "This is a photo of {}."

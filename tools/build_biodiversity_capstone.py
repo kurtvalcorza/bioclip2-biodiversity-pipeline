@@ -46,7 +46,7 @@ def carried_files() -> dict[str, str]:
     return files
 
 
-NOTEBOOK_REVISION = "0.2.0-candidate"
+NOTEBOOK_REVISION = "0.2.1-candidate"
 
 
 def observer_concentration_text(records: list[dict]) -> str:
@@ -136,18 +136,29 @@ with zipfile.ZipFile(io.BytesIO(wheel)) as archive:
 UV.chmod(0o700)
 uv_seconds = time.perf_counter() - step
 ENV = dict(os.environ, HF_HUB_DISABLE_IMPLICIT_TOKEN='1', HF_HUB_DISABLE_TELEMETRY='1', DO_NOT_TRACK='1')
-ENV.pop('HF_TOKEN', None)
-ENV.pop('HUGGING_FACE_HUB_TOKEN', None)
+# The notebook kernel's own settings must not leak into the isolated environment: Colab exports an
+# inline plotting backend and a PYTHONPATH that exist only in its kernel.
+for name in ('HF_TOKEN', 'HUGGING_FACE_HUB_TOKEN', 'PYTHONPATH', 'PYTHONHOME', 'PYTHONSTARTUP'):
+    ENV.pop(name, None)
+ENV['MPLBACKEND'] = 'Agg'
+print('Creating the isolated Python 3.12.12 environment...', flush=True)
 step = time.perf_counter()
 subprocess.run([str(UV), 'venv', '--managed-python', '--python', '3.12.12', str(ROOT / 'env')], env=ENV, check=True)
 environment_seconds = time.perf_counter() - step
 PYTHON = ROOT / 'env/bin/python'
+print('Installing the hashed dependency lock (several minutes; CUDA wheels are large)...', flush=True)
 step = time.perf_counter()
 subprocess.run([str(UV), 'pip', 'install', '--python', str(PYTHON), '--require-hashes', '--only-binary', ':all:',
                 '--index-url', 'https://pypi.org/simple', '-r', str(ROOT / 'requirements.txt')], env=ENV, check=True)
-subprocess.run([str(PYTHON), '-c', 'import sys,torch; print(sys.version); print(torch.__version__); assert torch.cuda.is_available()'], env=ENV, check=True)
+check = subprocess.run([str(PYTHON), '-c', 'import sys,torch; print("Python", sys.version.split()[0]); print("torch", torch.__version__, "CUDA", torch.version.cuda); assert torch.cuda.is_available(), "CUDA unavailable"; print("GPU", torch.cuda.get_device_name(0))'],
+                       env=ENV, capture_output=True, text=True)
+print(check.stdout.strip())
+if check.returncode:
+    print(check.stderr[-3000:])
+    raise RuntimeError('The isolated environment cannot use the GPU. Preserve this output.')
 install_seconds = time.perf_counter() - step
 BOOTSTRAP_SECONDS = time.perf_counter() - SESSION_START
+print(f'Environment ready in {BOOTSTRAP_SECONDS:.0f} s (uv {uv_seconds:.0f} s, venv {environment_seconds:.0f} s, install {install_seconds:.0f} s).')
 (ROOT / 'outputs').mkdir(exist_ok=True)
 (ROOT / 'outputs' / 'bootstrap.json').write_text(json.dumps({
     'seconds': BOOTSTRAP_SECONDS, 'uv_download_seconds': uv_seconds, 'environment_seconds': environment_seconds,

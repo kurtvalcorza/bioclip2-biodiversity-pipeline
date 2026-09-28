@@ -58,3 +58,12 @@ and `run_summary.json`). The cell count (36) and cell ids are unchanged.
    `head_equals_zero_shot`, the runtime table, and passing reload and archive verification.
 3. The threshold activity run at `lower` and `higher`, followed by §11, and one BYOD run.
 4. The maintainer's attribution review.
+
+## Addendum — first hosted run (0.2.0-candidate) and revision 0.2.1-candidate
+
+The maintainer's Colab T4 run of `5131aa2` matched its source exactly. It stopped in `prepare`:
+the isolated environment inherited Colab's `MPLBACKEND=module://matplotlib_inline.backend_inline`,
+and `import matplotlib` failed. Revision 0.2.1-candidate forces the `Agg` backend for stage
+processes, drops the kernel's `PYTHONPATH`, `PYTHONHOME` and `PYTHONSTARTUP`, and makes the
+bootstrap print its progress and the GPU it verified. The run is recorded in
+`../../release-verification.md`; the tests are in `tests/test_capstone_hosted_run_fixes.py`.

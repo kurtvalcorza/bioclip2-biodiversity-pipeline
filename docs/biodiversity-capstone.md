@@ -1,7 +1,9 @@
 # Philippine Biodiversity Field Survey capstone
 
-Status: **Candidate; hosted Colab T4 execution pending**. Revision **0.2.0-candidate**
-(review fixes BC-M1..M3 and BC-m1..m15 of 2026-09-28; see `release-verification.md`). This is
+Status: **Candidate; hosted Colab T4 execution pending**. Revision **0.2.1-candidate**:
+review fixes BC-M1..M3 and BC-m1..m15 (0.2.0) plus the stage-environment fix from the first
+hosted run, which failed in `prepare` on an inherited Colab plotting backend (0.2.1); see
+`release-verification.md`. This is
 a new notebook, separate from the already-qualified original biodiversity tutorial. Local
 software tests are not model-performance or hosted-runtime evidence.
 

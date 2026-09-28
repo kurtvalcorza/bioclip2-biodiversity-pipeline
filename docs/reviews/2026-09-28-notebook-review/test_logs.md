@@ -146,3 +146,17 @@ FAILED tests/test_capstone_review_fixes.py::test_no_filelink_objectives_listed_a
 FAILED tests/test_capstone_review_fixes.py::test_byod_accepts_one_enclosing_folder_and_explains_bad_csv
 22 failed in 42.28s
 ```
+
+## Revision 0.2.1-candidate (hosted-run fix)
+
+```text
+Full suite (PyTorch available): 103 passed in 36.80s
+PyTorch hidden (CI emulation): 98 passed, 5 skipped in 33.16s
+tests/test_capstone_hosted_run_fixes.py against 5131aa2:
+PASSED tests/test_capstone_hosted_run_fixes.py::test_every_stage_process_uses_the_sanitised_environment
+FAILED tests/test_capstone_hosted_run_fixes.py::test_stage_module_imports_under_the_colab_inline_backend
+FAILED tests/test_capstone_hosted_run_fixes.py::test_bootstrap_does_not_leak_kernel_settings_into_stage_processes
+========================= 2 failed, 1 passed in 0.80s =========================
+(test_every_stage_process_uses_the_sanitised_environment is a guard and passes on both;
+test_bootstrap_reports_progress_and_the_gpu_it_verified was added afterwards and fails on 5131aa2 by construction.)
+```
