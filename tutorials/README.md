@@ -45,7 +45,7 @@ The original tutorial and its evidence remain separate.
 
 | Notebook | Revision | Review | Hosted execution | Release status |
 |---|---|---|---|---|
-| `DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb` | `0.2.2-candidate` | 2026-09-28 review findings BC-M1..M3 and BC-m1..m15 fixed; offline tests only | Colab T4 runs of 0.2.0 and 0.2.1 failed in `prepare` (inherited plotting backend; encoder-dependent blank-control digest), both fixed; a fresh Run all of 0.2.2 is pending | Candidate — see `../docs/release-verification.md` |
+| `DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb` | `0.2.2-candidate` | 2026-09-28 review findings BC-M1..M3 and BC-m1..m15 fixed; offline tests only | 0.2.2: Colab T4 Run all PASS on 2026-09-28 (14/14 code cells, all nine stages; test macro-F1 of the head 1.000 on 12 photographs); the threshold activity at lower/higher, the §11 re-run and BYOD are not yet exercised. The 0.2.0 and 0.2.1 runs failed in `prepare` (fixed) | Candidate — see `../docs/release-verification.md` |
 
 The investigation compares majority, colour, nearest-neighbour, BioCLIP 2 and SigLIP 2 systems
 on 56 licensed Philippine bird photographs. Epoch and referral-policy selection use validation

@@ -137,7 +137,7 @@ runtime, not general estimates.
 | 2026-09-18 | `22f2854` / `60e7655f` | Kaggle fresh GPU container, CPython 3.12.13, Tesla T4, `torch 2.14.0+cu130`, CUDA 13.0, `open_clip 3.3.0`; exact fetched blob verified; empty Hub cache | Default standalone path from an empty snapshot (install → expected restart → fetch and digest-verify → validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload) | 265.3 s | **PASSED** — 15/15 code cells after one expected restart; all 3 snapshot entries verified (1.71 GB staged); zero-shot 12/12; majority 0.25/0.1; colour 0.25/0.1909; head-only adaptation of 3,076 params in 3.18 s; test accuracy/macro-F1/AUROC 1.0 (n=12), delta vs zero-shot 0.0; 6/6 held-out; adapter reload parity 0.0; preserved outputs include the evaluation, predictions, embeddings, sample data, adapter, result, contact sheet and embedded images with hashes recorded by the executor. This is qualification evidence, not a maintainer promotion decision. |
 
 
-## Philippine biodiversity capstone — review fixes and hosted-run fixes, revisions 0.2.0- to 0.2.2-candidate (2026-09-28)
+## Philippine biodiversity capstone — review fixes, hosted-run fixes and hosted default-path run, revisions 0.2.0- to 0.2.2-candidate (2026-09-28)
 
 Scope: `tutorials/DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb`, a separate notebook
 with its own evidence; nothing in this section changes the original tutorial's record above.
@@ -217,6 +217,58 @@ dimensions; record digests rewritten) and deterministic stub encoders in place o
 SigLIP. The head fit, selection, evaluation, triage, reload parity (max error 0.0) and archive
 verification ran unmodified. This is software evidence only.
 
+### Maintainer-supplied Colab execution of revision 0.2.2-candidate — 2026-09-28
+
+| Item | Value |
+|---|---|
+| File | `execution-evidence/2026-09-28/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_0.2.2-candidate.ipynb`, copied byte for byte |
+| SHA-256 | `bfecf50b8db3ae5c5158afdea64448cc5594c7b886ed63037865d0e6eee98398` (9,018,568 bytes) |
+| Source match | All 36 cell ids are in order and all sources are identical to notebook blob `fd96c48d` at `f8fc8e3`, except one line Colab inserted at the top of the collapsed carrier cell `code-04`: the comment `# @title`, which adds no code. No form parameter was changed. |
+| Runtime | Google Colab, Tesla T4. Isolated Python 3.12.12, torch 2.11.0+cu130, CUDA 13.0. Environment ready in 57 s (install 54 s). Wall clock from the first cell to the report: 287 s. |
+| Executed | **All 14 code cells, execution counts 1–14 in order, no errors** (a single Run all). All nine stages completed with receipts. |
+| Downloads | 60 photographs (23,918,875 bytes) in 97 s, including validation; SigLIP 2 1,539,456,760 bytes in 21 s; BioCLIP 2 1,710,538,981 bytes in 16 s. The synthetic blank was generated and passed decoded-pixel verification. |
+| Peak VRAM / host RAM | SigLIP stage 1.58 GB / 2.49 GB; BioCLIP stage 1.83 GB / 4.27 GB; reload 1.75 GB / 4.25 GB; the head fit ran on CPU (0.70 GB host RAM). |
+| Preprocessing | SigLIP labels lowercased, padded to 64 tokens (the stage asserts N × 64 input ids). |
+| Head selection (validation only) | lr 0.01 and epoch 20 selected, both the largest values in the grid and the schedule. Validation cross-entropy 0.018 against 0.235 at epoch 0. `head_equals_zero_shot` False. Maximum logit change 3.48; 2 of 44 train and validation predictions differ from zero-shot. |
+| Referral policy | The locked threshold of 0.6202 (the smallest validation margin) gives 100% validation coverage at 100% selective accuracy. On test: 12/12 accepted, 0 incorrect accepted. |
+| Reload and archive | Fresh process (PID 2790 → 2839); max absolute error 0.0; identical labels and referrals. `results.zip`: 44 members, 65,619 bytes; CRC, digests, paths, exclusions and 8-system metric recomputation all passed. |
+| Evidence boundary | Saved outputs were inspected; execution was not independently repeated. |
+
+Held-out test results, 12 photographs from 4 photographers (species-stratified bootstrap, 2,000 draws):
+
+| System | Accuracy | Macro-F1 | Macro-F1 95% interval | Top-2 | Paired difference vs BioCLIP scientific |
+|---|---:|---:|---|---:|---:|
+| majority | 0.250 | 0.100 | 0.100–0.100 | undefined | −0.750 |
+| colour | 0.500 | 0.439 | 0.259–0.617 | 0.917 | −0.500 |
+| SigLIP 2, common names | 0.500 | 0.364 | 0.338–0.402 | 0.667 | −0.500 |
+| SigLIP 2, scientific names | 0.333 | 0.270 | 0.188–0.351 | 0.500 | −0.667 |
+| BioCLIP 2, common names | 0.917 | 0.914 | 0.667–1.000 | 1.000 | −0.083 |
+| BioCLIP 2, scientific names (canonical zero-shot) | 1.000 | 1.000 | 1.000–1.000 | 1.000 | 0.000 |
+| BioCLIP 2 5-NN | 1.000 | 1.000 | 1.000–1.000 | 1.000 | 0.000 |
+| **BioCLIP 2 head (primary)** | **1.000** | **1.000** | 1.000–1.000 | 1.000 | 0.000 |
+
+Validation (12 photographs): SigLIP common 0.750 / 0.652, SigLIP scientific 0.500 / 0.375, BioCLIP
+common 1.000 / 1.000, BioCLIP scientific 0.917 / 0.914, 5-NN 1.000 / 1.000, colour 0.417 / 0.411,
+majority 0.250 / 0.100 (accuracy / macro-F1). Closed-set probes: the head named Philippine
+Pied-Fantail for all five probes. It accepted the flowerpecker (margin 0.911), the butterfly (0.997)
+and the snail (0.995), and referred the sparrow (0.195) and the blank control (0.526).
+
+Journeys:
+
+| Journey | Verdict |
+|---|---|
+| Clean default (Run all, defaults) | **PASS** on this runtime |
+| Threshold activity at `lower` / `higher` | Not assessed in this run: only `canonical` was executed. The recorded neighbours are 0 (lower) and 0.999889 (higher). |
+| §11 re-run after the activity | Not assessed in this run |
+| BYOD (grouped or inference-only) | Not assessed in this run (default off) |
+
+Observations for the maintainer, none of which blocks the default path:
+
+1. Test performance is at ceiling for three BioCLIP systems (1.0 with degenerate intervals). This run therefore cannot distinguish the head from zero-shot on test; the head changed only 2 train and validation predictions.
+2. The selected learning rate and epoch are the largest in the grid and the schedule, and validation loss was still falling at epoch 20.
+3. One creator's name, 呂一起 (Lyu yi-chi), is rendered with missing glyphs in the photo panels (Matplotlib's DejaVu Sans lacks CJK). The romanised name and the licence remain legible, and `attribution.csv` is exact.
+4. Each check above applies to this run only; the tiny sample means small changes can move these numbers.
+
 Evidence still required before this capstone can leave Candidate:
 
 1. a fresh Colab T4 **Run all** of the exact 0.2.2-candidate (or later) commit with default settings, recording the notebook
@@ -227,7 +279,7 @@ Evidence still required before this capstone can leave Candidate:
    one BYOD run (grouped or inference-only);
 4. the maintainer's review of photo attribution and use.
 
-The capstone executions so far are the failed 0.2.0- and 0.2.1-candidate runs recorded above; the next run must use revision 0.2.2-candidate or later.
+Capstone executions so far: the 0.2.0- and 0.2.1-candidate runs failed in `prepare`, and the 0.2.2-candidate run passed the clean default path. Items 1 and 2 of the list above are met for notebook blob `fd96c48d`. Items 3 and 4 remain open.
 
 ## Current status
 
