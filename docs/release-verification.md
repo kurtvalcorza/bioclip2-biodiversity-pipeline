@@ -137,7 +137,7 @@ runtime, not general estimates.
 | 2026-09-18 | `22f2854` / `60e7655f` | Kaggle fresh GPU container, CPython 3.12.13, Tesla T4, `torch 2.14.0+cu130`, CUDA 13.0, `open_clip 3.3.0`; exact fetched blob verified; empty Hub cache | Default standalone path from an empty snapshot (install → expected restart → fetch and digest-verify → validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload) | 265.3 s | **PASSED** — 15/15 code cells after one expected restart; all 3 snapshot entries verified (1.71 GB staged); zero-shot 12/12; majority 0.25/0.1; colour 0.25/0.1909; head-only adaptation of 3,076 params in 3.18 s; test accuracy/macro-F1/AUROC 1.0 (n=12), delta vs zero-shot 0.0; 6/6 held-out; adapter reload parity 0.0; preserved outputs include the evaluation, predictions, embeddings, sample data, adapter, result, contact sheet and embedded images with hashes recorded by the executor. This is qualification evidence, not a maintainer promotion decision. |
 
 
-## Philippine biodiversity capstone — review fixes, revisions 0.2.0-candidate and 0.2.1-candidate (2026-09-28)
+## Philippine biodiversity capstone — review fixes and hosted-run fixes, revisions 0.2.0- to 0.2.2-candidate (2026-09-28)
 
 Scope: `tutorials/DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb`, a separate notebook
 with its own evidence; nothing in this section changes the original tutorial's record above.
@@ -182,7 +182,7 @@ particular has been exercised only on synthetic features.
 
 | Item | Value |
 |---|---|
-| File | `execution-evidence/2026-09-28/DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb`, copied byte for byte |
+| File | `execution-evidence/2026-09-28/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_0.2.0-candidate.ipynb`, copied byte for byte |
 | SHA-256 | `3189f3e009a419ca06c629cd7786265b4f838de16e8082b9162e8d34b2d1d081` (454,876 bytes) |
 | Source match | All 36 cells have the same ids and sources as notebook blob `9774379b` at `5131aa2`; no form parameter was changed |
 | Runtime | Google Colab, Tesla T4 (printed by the preflight cell); notebook metadata `accelerator: GPU`, `gpuType: T4` |
@@ -194,9 +194,32 @@ particular has been exercised only on synthetic features.
 | Fixed in | revision 0.2.1-candidate: stage processes force `MPLBACKEND=Agg` (in the bootstrap environment and in `capstone.py` before `import matplotlib`) and drop `PYTHONPATH`, `PYTHONHOME` and `PYTHONSTARTUP`. The bootstrap now prints progress and the Python, torch, CUDA and GPU it verified. Tests: `tests/test_capstone_hosted_run_fixes.py` (4 tests; the two behavioural ones fail on `5131aa2`). |
 | Open | Everything from §3 onward, i.e. the whole evidence list below. |
 
+### Maintainer-supplied Colab execution of revision 0.2.1-candidate — 2026-09-28
+
+| Item | Value |
+|---|---|
+| File | `execution-evidence/2026-09-28/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_0.2.1-candidate.ipynb`, copied byte for byte |
+| SHA-256 | `92fcfab72b5a609d84b2570a64af62d0b8e41d1532e26675a96e0eb0917d792e` (457,070 bytes) |
+| Source match | All 36 cells have the same ids and sources as notebook blob `26f290f3` at `ebaed9e`; no form parameter was changed |
+| Runtime | Google Colab, Tesla T4. The bootstrap printed: Python 3.12.12, torch 2.11.0+cu130, CUDA 13.0, GPU Tesla T4. Environment ready in 69 s (uv 1 s, venv 2 s, install 63 s). |
+| Executed | Code cells 1–4 in order (execution counts 1–4) |
+| Result | **FAILED in `prepare`** with `ValueError: Photo size/hash mismatch: blank-control`. The remaining 10 code cells did not run; no metrics were produced. |
+| What passed first | The 0.2.1 environment fix worked: `capstone.py` imported, and `prepare` validated the manifest and exclusions. `validate_images` checks records before probes, and the blank control is the last probe, so all 60 iNaturalist photographs (56 canonical, 4 probes) were downloaded and passed the size, SHA-256, decode, dimension, GPS-EXIF, duplicate-pixel and dHash checks on Colab before the failure. |
+| Cause | The synthetic blank control is generated at runtime by encoding a constant 224 × 224 PNG. Its manifest byte digest came from the freezing machine's encoder (reproducible there with zlib-ng at level 6), and the Pillow wheel on Colab encoded different bytes. The 2026-09-28 review had flagged this as suggestion BC-S2. |
+| Evidence boundary | Saved outputs were inspected; execution was not independently repeated. |
+| Fixed in | revision 0.2.2-candidate: synthetic probes are verified by the SHA-256 of their decoded pixels (`verify_cached`), and later stages re-verify the cache the same way. Photographs keep byte-exact verification. The frozen manifest is unchanged. Tests: three added to `tests/test_capstone_hosted_run_fixes.py`. |
+
+Offline check of the full stage chain for 0.2.2-candidate (not hosted evidence): the carried
+`capstone.py` ran all nine stages, the threshold activity at `lower` and `higher`, the
+fresh-process reload and the report. Each stage ran in its own process with Colab's
+`MPLBACKEND` set. The inputs were a synthetic photo cache (random images with the manifest's
+dimensions; record digests rewritten) and deterministic stub encoders in place of BioCLIP and
+SigLIP. The head fit, selection, evaluation, triage, reload parity (max error 0.0) and archive
+verification ran unmodified. This is software evidence only.
+
 Evidence still required before this capstone can leave Candidate:
 
-1. a fresh Colab T4 **Run all** of the exact 0.2.1-candidate (or later) commit with default settings, recording the notebook
+1. a fresh Colab T4 **Run all** of the exact 0.2.2-candidate (or later) commit with default settings, recording the notebook
    blob, all 14 code cells, runtime, peak RAM/VRAM and the observed metrics;
 2. confirmation in that run that the SigLIP text is 64 tokens, that the selected learning rate
    and epoch and `head_equals_zero_shot` are reported, and that reload parity passes;
@@ -204,7 +227,7 @@ Evidence still required before this capstone can leave Candidate:
    one BYOD run (grouped or inference-only);
 4. the maintainer's review of photo attribution and use.
 
-The only capstone execution so far is the failed 0.2.0-candidate run recorded above; the next run must use revision 0.2.1-candidate or later.
+The capstone executions so far are the failed 0.2.0- and 0.2.1-candidate runs recorded above; the next run must use revision 0.2.2-candidate or later.
 
 ## Current status
 

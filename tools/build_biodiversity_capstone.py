@@ -46,7 +46,7 @@ def carried_files() -> dict[str, str]:
     return files
 
 
-NOTEBOOK_REVISION = "0.2.1-candidate"
+NOTEBOOK_REVISION = "0.2.2-candidate"
 
 
 def observer_concentration_text(records: list[dict]) -> str:

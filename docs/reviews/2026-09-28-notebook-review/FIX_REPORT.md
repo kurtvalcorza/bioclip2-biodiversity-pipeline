@@ -67,3 +67,13 @@ and `import matplotlib` failed. Revision 0.2.1-candidate forces the `Agg` backen
 processes, drops the kernel's `PYTHONPATH`, `PYTHONHOME` and `PYTHONSTARTUP`, and makes the
 bootstrap print its progress and the GPU it verified. The run is recorded in
 `../../release-verification.md`; the tests are in `tests/test_capstone_hosted_run_fixes.py`.
+
+## Addendum — second hosted run (0.2.1-candidate) and revision 0.2.2-candidate
+
+The run of `ebaed9e` matched its source exactly. The plotting-backend fix held, and all 60
+iNaturalist photographs passed their checks on Colab. `prepare` then refused the synthetic blank
+control, because its PNG bytes differed from the manifest digest: this was the review's
+suggestion BC-S2. Revision 0.2.2-candidate verifies synthetic probes by decoded pixels
+(`core.verify_cached`), so BC-S2 is now implemented. An offline stage-chain check (synthetic
+photos, stub encoders) ran all nine stages, the activity and the report; see
+`offline-stage-chain-0.2.2/`.

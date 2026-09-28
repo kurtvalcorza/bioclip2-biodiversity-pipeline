@@ -1,0 +1,71 @@
+{
+  "head_training.json": {
+    "trainable_tensors": "head.bias, head.weight",
+    "trainable_parameters": 3076,
+    "frozen": "both BioCLIP towers",
+    "optimizer": "AdamW",
+    "learning_rate_grid": "0.0001, 0.001, 0.01",
+    "selected_learning_rate": 0.01,
+    "weight_decay": 0.01,
+    "batch_size": 8,
+    "max_epochs": 20,
+    "selected_epoch": 17,
+    "selected_validation_cross_entropy": 1.3935707807540894,
+    "head_equals_zero_shot": false,
+    "max_abs_weight_change_train_validation": 0.24188518524169922,
+    "max_abs_bias_train_validation": 0.14937911927700043,
+    "max_abs_logit_change_train_validation": 4.200204849243164,
+    "predictions_changed_vs_zero_shot_train_validation": 31,
+    "records_compared_train_validation": 44
+  },
+  "archive_verification.json": {
+    "crc": true,
+    "member_hashes": true,
+    "safe_member_paths": true,
+    "members": 41,
+    "bytes": 63812,
+    "excluded_assets_absent": true,
+    "checked_exclusions": ".png, .jpg, .jpeg, .webp, .img, .npy, .npz, .bin, .pt, .pth, .whl, cache/, weights/, env/, figures/",
+    "headline_metrics_recomputed_from_archived_predictions": true,
+    "systems_recomputed": 8
+  },
+  "verification_reload.json": {
+    "score_allclose": true,
+    "identical_labels": true,
+    "identical_referrals": true,
+    "max_absolute_error": 0.0,
+    "atol": 1e-06,
+    "rtol": 1e-05,
+    "fresh_process": true,
+    "original_pid": 52584,
+    "reload_pid": 41044,
+    "adapter_sha256": "25c0a82f419f84b42bc03371ec38315af6086580a0b707d82b690960d4fab514",
+    "batch_composition": "the same two test records, embedded together, as in the bioclip-zero-shot stage"
+  },
+  "activity_thresholds.json": {
+    "lower": 0.011778770506038594,
+    "canonical": 0.013154763460749563,
+    "higher": 0.01878083478827719,
+    "rule": "adjacent distinct validation candidate thresholds around the locked value"
+  },
+  "download_dataset.json": {
+    "downloaded_records": 0,
+    "downloaded_bytes": 0,
+    "seconds": 1.3119999999980791,
+    "generated_synthetic_probes": 1,
+    "note": "fetch plus hash, decode, dHash and EXIF validation of every manifest image; synthetic probes are generated locally and verified by decoded pixels"
+  },
+  "stages_completed": [
+    "prepare",
+    "siglip-zero-shot",
+    "bioclip-zero-shot",
+    "representations",
+    "adapt-head",
+    "evaluate",
+    "triage",
+    "reload",
+    "report"
+  ],
+  "note": "SYNTHETIC photos and STUB encoders; software evidence for the stage chain only, not model or hosted evidence.",
+  "environment": "Windows, CPython 3.12.14, numpy 2.5.3, Pillow 12.3.0, matplotlib 3.11.2, torch 2.13.0+cpu; MPLBACKEND=module://matplotlib_inline.backend_inline in the parent environment"
+}

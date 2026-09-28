@@ -43,6 +43,10 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
 def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -326,15 +330,52 @@ def validate_manifest(manifest: dict, strict: bool = True) -> dict:
     }
 
 
+# Synthetic probes are generated at runtime, so their *pixels* are the contract. PNG encoder output
+# depends on the zlib build bundled with Pillow (the frozen manifest's byte digest came from the
+# freezing machine and did not reproduce on Colab), so encoded bytes are never compared for them.
+SYNTHETIC_PROBES = {"blank": ((224, 224), (128, 128, 128))}
+
+
+def synthetic_image(record: dict) -> Image.Image:
+    kind = record.get("synthetic")
+    if kind not in SYNTHETIC_PROBES:
+        raise ValueError(f"Unknown synthetic probe: {kind!r}")
+    size, colour = SYNTHETIC_PROBES[kind]
+    if (record["width"], record["height"]) != size:
+        raise ValueError(f"Synthetic probe dimensions differ from the manifest: {record['id']}")
+    return Image.new("RGB", size, colour)
+
+
+def pixel_sha256(image: Image.Image) -> str:
+    """Digest of decoded, orientation-corrected RGB pixels (independent of the file encoding)."""
+    rgb = ImageOps.exif_transpose(image).convert("RGB")
+    return hashlib.sha256(str(rgb.size).encode() + rgb.tobytes()).hexdigest()
+
+
+def verify_cached(record: dict, path: Path) -> None:
+    """Refuse a cache file that no longer matches its record."""
+    if record.get("synthetic"):
+        try:
+            with Image.open(path) as image:
+                actual = pixel_sha256(image)
+        except OSError as exc:
+            raise ValueError(f"Modified synthetic probe cache: {record['id']}") from exc
+        if actual != pixel_sha256(synthetic_image(record)):
+            raise ValueError(f"Modified synthetic probe cache: {record['id']}")
+        return
+    if path.stat().st_size != record["bytes"] or sha256(path) != record["sha256"]:
+        raise ValueError(f"Modified image cache: {record['id']}")
+
+
 def fetch_asset(root: Path, record: dict) -> Path:
     """Download a bounded manifest-listed photo; corrupt caches are refused, not silently repaired."""
     target = safe_path(root / "cache", record["id"] + ".img")
     if not target.exists():
         target.parent.mkdir(parents=True, exist_ok=True)
-        if record.get("synthetic") == "blank":
+        if record.get("synthetic"):
             stream = io.BytesIO()
-            Image.new("RGB", (224, 224), (128, 128, 128)).save(stream, format="PNG")
-            payload = stream.getvalue()
+            synthetic_image(record).save(stream, format="PNG")
+            target.write_bytes(stream.getvalue())
         else:
             url = urllib.parse.urlsplit(record["url"])
             if url.scheme != "https" or url.hostname not in {
@@ -354,11 +395,10 @@ def fetch_asset(root: Path, record: dict) -> Path:
                     if attempt == 2:
                         raise
                     time.sleep(2**attempt)
-        if len(payload) != record["bytes"] or hashlib.sha256(payload).hexdigest() != record["sha256"]:
-            raise ValueError(f"Photo size/hash mismatch: {record['id']}")
-        target.write_bytes(payload)
-    if target.stat().st_size != record["bytes"] or sha256(target) != record["sha256"]:
-        raise ValueError(f"Modified image cache: {record['id']}")
+            if len(payload) != record["bytes"] or hashlib.sha256(payload).hexdigest() != record["sha256"]:
+                raise ValueError(f"Photo size/hash mismatch: {record['id']}")
+            target.write_bytes(payload)
+    verify_cached(record, target)
     return target
 
 

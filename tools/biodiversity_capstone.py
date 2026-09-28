@@ -58,7 +58,7 @@ CONFIG = {
     "atol": 1e-6,
     "rtol": 1e-5,
 }
-NOTEBOOK_REVISION = "0.2.1-candidate"
+NOTEBOOK_REVISION = "0.2.2-candidate"
 # Transformers SigLIP 2 guidance: lowercased label text, the pipeline template and fixed
 # padding to 64 tokens, which is how the model was trained.
 SIGLIP_TEMPLATE = "This is a photo of {}."
@@ -206,14 +206,16 @@ def prepare(root):
     image_checks = core.validate_images(root, manifest)
     fetch_seconds = time.monotonic() - started
     out = root / "outputs"
-    fetched = [r for r in records if f"{r['id']}.img" not in cached_before]
+    fetched = [r for r in records if f"{r['id']}.img" not in cached_before and not r.get("synthetic")]
     core.write_json(
         out / "download_dataset.json",
         {
             "downloaded_records": len(fetched),
             "downloaded_bytes": sum(r["bytes"] for r in fetched),
             "seconds": fetch_seconds,
-            "note": "fetch plus hash, decode, dHash and EXIF validation of every manifest image",
+            "generated_synthetic_probes": sum(1 for r in records if r.get("synthetic")),
+            "note": "fetch plus hash, decode, dHash and EXIF validation of every manifest image; "
+            "synthetic probes are generated locally and verified by decoded pixels",
         },
     )
     for filename in ("data_manifest.json", "model_manifest.json"):
@@ -1507,8 +1509,12 @@ def begin_stage(root, stage, invalidate=True):
         _, _, records = context(root)
         for r in records:
             path = root / "cache" / f"{r['id']}.img"
-            if path.stat().st_size != r["bytes"] or core.sha256(path) != r["sha256"]:
+            if not path.exists():
                 raise ValueError("Cached dataset changed; rerun prepare")
+            try:
+                core.verify_cached(r, path)
+            except ValueError as exc:
+                raise ValueError("Cached dataset changed; rerun prepare") from exc
     if invalidate:
         for following in STAGES[STAGES.index(stage) :]:
             (receipts / f"{following}.json").unlink(missing_ok=True)

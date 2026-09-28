@@ -65,6 +65,65 @@ def test_bootstrap_reports_progress_and_the_gpu_it_verified():
     assert "print(check.stdout.strip())" in code and "Environment ready in" in code
 
 
+def _blank_record():
+    import biodiversity_core as core
+
+    manifest = core.read_json(ROOT / "tools/biodiversity_data.json")
+    return next(p for p in manifest["probes"] if p.get("synthetic") == "blank")
+
+
+def test_synthetic_blank_is_verified_by_pixels_not_encoder_bytes(tmp_path):
+    """Second hosted run: Colab's Pillow encoded the blank PNG differently from the freezing machine."""
+    import io
+
+    import biodiversity_core as core
+    from PIL import Image
+
+    record = _blank_record()
+    path = core.fetch_asset(tmp_path, record)
+    with Image.open(path) as image:
+        assert image.size == (224, 224) and image.getextrema() == ((128, 128),) * 3
+    # Same pixels, different encoder settings (as a different zlib build would produce).
+    stream = io.BytesIO()
+    Image.new("RGB", (224, 224), (128, 128, 128)).save(stream, format="PNG", compress_level=1)
+    assert core.sha256_bytes(stream.getvalue()) != record["sha256"]
+    path.write_bytes(stream.getvalue())
+    assert core.fetch_asset(tmp_path, record) == path
+    Image.new("RGB", (224, 224), (127, 128, 128)).save(path, format="PNG")
+    with pytest.raises(ValueError, match="synthetic probe"):
+        core.fetch_asset(tmp_path, record)
+    path.write_bytes(b"not an image")
+    with pytest.raises(ValueError, match="synthetic probe"):
+        core.verify_cached(record, path)
+
+
+def test_photographs_keep_byte_exact_verification(tmp_path):
+    import biodiversity_core as core
+
+    record = core.read_json(ROOT / "tools/biodiversity_data.json")["records"][0]
+    path = tmp_path / "cache" / (record["id"] + ".img")
+    path.parent.mkdir()
+    path.write_bytes(b"x" * record["bytes"])
+    with pytest.raises(ValueError, match="Modified image cache"):
+        core.verify_cached(record, path)
+
+
+def test_later_stages_reverify_the_synthetic_cache(tmp_path, monkeypatch):
+    import biodiversity_capstone as run
+    import biodiversity_core as core
+    from PIL import Image
+
+    blank = _blank_record()
+    core.write_json(tmp_path / "data_manifest.json", {"classes": [], "records": [], "probes": [blank]})
+    monkeypatch.setattr(run, "identity", lambda root: {"fixture": True})
+    core.write_json(tmp_path / "receipts" / "prepare.json", {"identity": {"fixture": True}, "products": {}})
+    core.fetch_asset(tmp_path, blank)
+    run.begin_stage(tmp_path, "siglip-zero-shot", invalidate=False)
+    Image.new("RGB", (224, 224), (0, 0, 0)).save(tmp_path / "cache" / "blank-control.img", format="PNG")
+    with pytest.raises(ValueError, match="rerun prepare"):
+        run.begin_stage(tmp_path, "siglip-zero-shot", invalidate=False)
+
+
 def test_every_stage_process_uses_the_sanitised_environment():
     code = _code("code-05") + _code("code-34")
     assert code.count("env=ENV") >= 5

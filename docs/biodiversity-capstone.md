@@ -1,9 +1,9 @@
 # Philippine Biodiversity Field Survey capstone
 
-Status: **Candidate; hosted Colab T4 execution pending**. Revision **0.2.1-candidate**:
-review fixes BC-M1..M3 and BC-m1..m15 (0.2.0) plus the stage-environment fix from the first
-hosted run, which failed in `prepare` on an inherited Colab plotting backend (0.2.1); see
-`release-verification.md`. This is
+Status: **Candidate; hosted Colab T4 execution pending**. Revision **0.2.2-candidate**:
+review fixes BC-M1..M3 and BC-m1..m15 (0.2.0), then fixes from two hosted runs that stopped in
+`prepare`: an inherited Colab plotting backend (0.2.1) and an encoder-dependent byte digest for
+the synthetic blank control (0.2.2); see `release-verification.md`. This is
 a new notebook, separate from the already-qualified original biodiversity tutorial. Local
 software tests are not model-performance or hosted-runtime evidence.
 
@@ -100,6 +100,9 @@ Visual composition review is not expert taxonomic verification.
    instead of using the original pipeline's single 1e-4 default. With a head initialised at
    logit scale × text, 80 steps at 1e-4 cannot move a logit by more than about 0.2, which
    would make the head-versus-zero-shot comparison uninformative (review finding BC-M1).
+9. Synthetic probes (the blank control) are verified by the SHA-256 of their decoded pixels,
+   not by the byte digest recorded in the frozen manifest, because PNG encoder output depends
+   on the zlib build bundled with Pillow. Photographs keep byte-exact verification.
 
 ## Qualification procedure
 

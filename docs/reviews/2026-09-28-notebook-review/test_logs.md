@@ -160,3 +160,21 @@ FAILED tests/test_capstone_hosted_run_fixes.py::test_bootstrap_does_not_leak_ker
 (test_every_stage_process_uses_the_sanitised_environment is a guard and passes on both;
 test_bootstrap_reports_progress_and_the_gpu_it_verified was added afterwards and fails on 5131aa2 by construction.)
 ```
+
+## Revision 0.2.2-candidate (synthetic-probe verification)
+
+```text
+Full suite (PyTorch available): 106 passed in 41.88s
+PyTorch hidden (CI emulation): 101 passed, 5 skipped in 29.44s
+tests/test_capstone_hosted_run_fixes.py against ebaed9e:
+PASSED tests/test_capstone_hosted_run_fixes.py::test_stage_module_imports_under_the_colab_inline_backend
+PASSED tests/test_capstone_hosted_run_fixes.py::test_bootstrap_does_not_leak_kernel_settings_into_stage_processes
+PASSED tests/test_capstone_hosted_run_fixes.py::test_bootstrap_reports_progress_and_the_gpu_it_verified
+PASSED tests/test_capstone_hosted_run_fixes.py::test_later_stages_reverify_the_synthetic_cache
+PASSED tests/test_capstone_hosted_run_fixes.py::test_every_stage_process_uses_the_sanitised_environment
+FAILED tests/test_capstone_hosted_run_fixes.py::test_synthetic_blank_is_verified_by_pixels_not_encoder_bytes
+FAILED tests/test_capstone_hosted_run_fixes.py::test_photographs_keep_byte_exact_verification
+========================= 2 failed, 5 passed in 1.26s =========================
+(test_later_stages_reverify_the_synthetic_cache is a guard: this workstation's Pillow reproduces the
+manifest bytes, so the old byte check also refuses the altered image here.)
+```
