@@ -1,2 +1,6 @@
 # Snapshot files are digest-verified byte-for-byte against dimer-base-manifest.json; never convert their line endings.
 weights/** -text
+tools/biodiversity_data.json text eol=lf
+tools/biodiversity_exclusions.json text eol=lf
+# Recorded executions are byte-for-byte evidence.
+docs/execution-evidence/** -text

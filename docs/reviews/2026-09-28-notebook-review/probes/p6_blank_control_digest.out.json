@@ -1,0 +1,43 @@
+{
+  "manifest_bytes": 675,
+  "manifest_sha256": "f8e2ad8e35a3200698374150a657caeda54919373983b2044638984e7afd1ad7",
+  "python_zlib_runtime": "1.3.1.zlib-ng",
+  "results": [
+    {
+      "filter": "none",
+      "level": 1,
+      "bytes": 1916,
+      "matches_manifest": false
+    },
+    {
+      "filter": "none",
+      "level": 6,
+      "bytes": 673,
+      "matches_manifest": false
+    },
+    {
+      "filter": "none",
+      "level": 9,
+      "bytes": 481,
+      "matches_manifest": false
+    },
+    {
+      "filter": "adaptive(sub,up...)",
+      "level": 1,
+      "bytes": 2279,
+      "matches_manifest": false
+    },
+    {
+      "filter": "adaptive(sub,up...)",
+      "level": 6,
+      "bytes": 675,
+      "matches_manifest": true
+    },
+    {
+      "filter": "adaptive(sub,up...)",
+      "level": 9,
+      "bytes": 483,
+      "matches_manifest": false
+    }
+  ]
+}

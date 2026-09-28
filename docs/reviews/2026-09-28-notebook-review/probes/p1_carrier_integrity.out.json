@@ -1,0 +1,101 @@
+{
+  "notebook_sha256": "fa2be8830eb9a15de1f1e9946ea7761950776415329ec567caedbeb55c569894",
+  "bytes": 410113,
+  "cells": 36,
+  "cell_types": {
+    "markdown": 22,
+    "code": 14
+  },
+  "executed_code_cells": 0,
+  "outputs_present": 0,
+  "metadata": {
+    "notebook_spec": "2.2",
+    "profile": "E2E",
+    "pedagogical_mode": "WORKSHOP",
+    "release_status": "Candidate",
+    "standalone": true
+  },
+  "generated_from": {
+    "repository": "kurtvalcorza/bioclip2-biodiversity-pipeline",
+    "base_revision": "d19beaa93c9d7434773b6874f0d4e62187d2dd34",
+    "generator": "build_biodiversity_capstone.py/1",
+    "generator_sha256": "96ab18140ae8524e6386086a9c8696094891dac0691ffb6f150bea8fba33cf93"
+  },
+  "carried_files": {
+    "bioclip2_biodiversity_pipeline/__init__.py": {
+      "bytes": 67,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "bioclip2_biodiversity_pipeline/pipeline.py": {
+      "bytes": 42207,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "bioclip2_biodiversity_pipeline/metrics.py": {
+      "bytes": 7321,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "capstone.py": {
+      "bytes": 47012,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "biodiversity_core.py": {
+      "bytes": 24603,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "data_manifest.json": {
+      "bytes": 81898,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "model_manifest.json": {
+      "bytes": 1906,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "exclusions.json": {
+      "bytes": 342,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "requirements.txt": {
+      "bytes": 121795,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "licenses/code.txt": {
+      "bytes": 11343,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "weights/bioclip-2/dimer-base-manifest.json": {
+      "bytes": 693,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": true
+    },
+    "source.json": {
+      "bytes": 1405,
+      "sha256_matches_CARRIED_HASHES": true,
+      "sha256_matches_notebook_metadata": "not listed"
+    }
+  },
+  "data_manifest_digest_ok": true,
+  "exclusions_digest_ok": true,
+  "lock": {
+    "pinned_packages": 65,
+    "all_hashed": true,
+    "key_pins": [
+      "numpy==2.5.3",
+      "nvidia-cuda-runtime==13.0.96",
+      "open-clip-torch==3.3.0",
+      "scikit-learn==1.8.0",
+      "torch==2.11.0",
+      "torchvision==0.26.0",
+      "transformers==4.57.6"
+    ]
+  }
+}

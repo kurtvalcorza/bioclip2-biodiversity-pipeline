@@ -1,0 +1,180 @@
+# Test logs, 2026-09-28 (Windows, CPython 3.12.14, numpy 2.5.3, Pillow 12.3.0, torch 2.13.0+cpu)
+
+Local note: this workstation's pip torch and conda MKL both ship an OpenMP runtime, so runs set
+KMP_DUPLICATE_LIB_OK=TRUE. That is an environment workaround, not a repository change.
+
+## Fix branch, full suite (PyTorch available)
+
+```text
+PASSED tests/test_adaptation.py::test_sample_dataset_is_the_recorded_cc0_set
+PASSED tests/test_adaptation.py::test_sample_provenance_is_complete_and_location_free
+PASSED tests/test_adaptation.py::test_sample_records_carry_provenance_fields
+PASSED tests/test_adaptation.py::test_validate_dataset_rejections_are_actionable
+PASSED tests/test_adaptation.py::test_split_is_stratified_disjoint_and_seeded
+PASSED tests/test_adaptation.py::test_auroc_handles_ties_and_degenerate_labels
+PASSED tests/test_adaptation.py::test_classification_metrics_multiclass
+PASSED tests/test_adaptation.py::test_color_features_and_baseline
+PASSED tests/test_adaptation.py::test_sample_baselines_sit_at_chance_by_design
+PASSED tests/test_adaptation.py::test_byod_csv_roundtrip_and_rejections
+PASSED tests/test_adaptation.py::test_byod_directory_layout
+PASSED tests/test_adaptation.py::test_byod_json_and_jsonl
+PASSED tests/test_adaptation.py::test_load_artifact_rejects_bad_manifests_before_touching_weights
+PASSED tests/test_biodiversity_core.py::test_metrics_hand_calculated_and_stable_score_ties
+PASSED tests/test_biodiversity_core.py::test_invalid_scores_refused[scores0]
+PASSED tests/test_biodiversity_core.py::test_invalid_scores_refused[scores1]
+PASSED tests/test_biodiversity_core.py::test_invalid_scores_refused[scores2]
+PASSED tests/test_biodiversity_core.py::test_bootstrap_reproducible_and_cluster_option
+PASSED tests/test_biodiversity_core.py::test_referral_selects_validation_policy_and_handles_all_referred
+PASSED tests/test_biodiversity_core.py::test_knn_uses_positive_similarity_and_lexical_vote_tie
+PASSED tests/test_biodiversity_core.py::test_manifest_group_and_licence_audit
+PASSED tests/test_biodiversity_core.py::test_frozen_manifest_integrity_and_grouped_support
+PASSED tests/test_biodiversity_core.py::test_manifest_refusals[<lambda>-Observer leakage]
+PASSED tests/test_biodiversity_core.py::test_manifest_refusals[<lambda>-Disallowed]
+PASSED tests/test_biodiversity_core.py::test_manifest_refusals[<lambda>-attribution]
+PASSED tests/test_biodiversity_core.py::test_manifest_refusals[<lambda>-metadata]
+PASSED tests/test_biodiversity_core.py::test_manifest_refusals[<lambda>-dimension]
+PASSED tests/test_biodiversity_core.py::test_manifest_refusals[<lambda>-Duplicate]
+PASSED tests/test_biodiversity_core.py::test_manifest_refusals[<lambda>-Unsafe]
+PASSED tests/test_biodiversity_core.py::test_path_refusal[../x]
+PASSED tests/test_biodiversity_core.py::test_path_refusal[/x]
+PASSED tests/test_biodiversity_core.py::test_path_refusal[C:/x]
+PASSED tests/test_biodiversity_core.py::test_path_refusal[a\\x]
+PASSED tests/test_biodiversity_core.py::test_path_refusal[a/../../x]
+PASSED tests/test_biodiversity_core.py::test_corrupt_image_cache_refused
+PASSED tests/test_biodiversity_core.py::test_parity_refuses_threshold_crossing_even_with_close_scores
+PASSED tests/test_biodiversity_core.py::test_byod_zip_traversal_and_ungrouped_inference_only
+PASSED tests/test_biodiversity_core.py::test_grouped_byod_assignment
+PASSED tests/test_biodiversity_core.py::test_no_predicted_class_has_zero_f1
+PASSED tests/test_biodiversity_runtime.py::test_head_epoch_zero_is_valid_candidate
+PASSED tests/test_biodiversity_runtime.py::test_adapt_export_refuses_tampering_and_wrong_class_order
+PASSED tests/test_biodiversity_runtime.py::test_synthetic_evaluation_triage_and_archive_parity
+PASSED tests/test_biodiversity_runtime.py::test_stage_receipt_refuses_mutated_prerequisite
+PASSED tests/test_capstone_review_fixes.py::test_head_learning_rate_grid_is_predeclared
+PASSED tests/test_capstone_review_fixes.py::test_head_can_leave_zero_shot_when_validation_supports_it
+PASSED tests/test_capstone_review_fixes.py::test_adapt_head_reports_selection_and_distance_from_zero_shot
+PASSED tests/test_capstone_review_fixes.py::test_notebook_explains_rate_selection_and_shows_head_record
+PASSED tests/test_capstone_review_fixes.py::test_siglip_stage_uses_documented_lowercase_64_token_text
+PASSED tests/test_capstone_review_fixes.py::test_perfect_classifier_has_degenerate_macro_f1_interval
+PASSED tests/test_capstone_review_fixes.py::test_exported_intervals_are_species_stratified
+PASSED tests/test_capstone_review_fixes.py::test_runtime_summary_reports_bootstrap_downloads_and_stages
+PASSED tests/test_capstone_review_fixes.py::test_notebook_records_bootstrap_timing_and_renders_runtime
+PASSED tests/test_capstone_review_fixes.py::test_archive_verification_is_real_and_displayed
+PASSED tests/test_capstone_review_fixes.py::test_repeat_and_reload_probe_use_matching_batches
+PASSED tests/test_capstone_review_fixes.py::test_reload_expectation_comes_from_the_matched_batch
+PASSED tests/test_capstone_review_fixes.py::test_activity_uses_adjacent_validation_candidates
+PASSED tests/test_capstone_review_fixes.py::test_error_panel_names_categories_and_falls_back
+PASSED tests/test_capstone_review_fixes.py::test_error_panel_annotations_and_csv
+PASSED tests/test_capstone_review_fixes.py::test_observer_concentration_and_audit_from_frozen_manifest
+PASSED tests/test_capstone_review_fixes.py::test_learner_text_discloses_concentration_taxonomy_and_location_limits
+PASSED tests/test_capstone_review_fixes.py::test_probes_listed_for_every_system
+PASSED tests/test_capstone_review_fixes.py::test_majority_top2_is_undefined_and_parity_still_holds
+PASSED tests/test_capstone_review_fixes.py::test_risk_rows_sorted_and_palette_colour_blind_safe
+PASSED tests/test_capstone_review_fixes.py::test_no_filelink_objectives_listed_and_revision_consistent
+PASSED tests/test_capstone_review_fixes.py::test_byod_accepts_one_enclosing_folder_and_explains_bad_csv
+PASSED tests/test_import_boundary.py::test_from_pretrained_refuses_without_manifest_before_model_imports
+PASSED tests/test_import_boundary.py::test_from_pretrained_refuses_tampered_snapshot_before_model_imports
+PASSED tests/test_import_boundary.py::test_config_drift_is_refused_before_model_imports
+PASSED tests/test_import_boundary.py::test_undecodable_images_are_rejected_before_model_imports
+PASSED tests/test_notebook_parity.py::test_par1_embedded_modules_equal_repository_modules
+PASSED tests/test_notebook_parity.py::test_par1_rewrite_rules_are_the_only_difference
+PASSED tests/test_notebook_parity.py::test_par2_inline_manifest_and_pins_match_repository
+PASSED tests/test_notebook_parity.py::test_par3_generator_check_is_clean
+PASSED tests/test_notebook_parity.py::test_st1_primary_path_has_no_repository_dependency
+PASSED tests/test_pipeline.py::test_identity_constants_and_manifest
+PASSED tests/test_pipeline.py::test_verify_snapshot_accepts_and_rejects
+PASSED tests/test_pipeline.py::test_verify_snapshot_refuses_a_manifest_without_the_weights
+PASSED tests/test_pipeline.py::test_stage_missing_files_fetches_only_absent_entries
+PASSED tests/test_pipeline.py::test_stage_refuses_manifest_for_another_model
+PASSED tests/test_pipeline.py::test_decode_image_accepts_bytes_paths_and_pil
+PASSED tests/test_pipeline.py::test_decode_image_rejections_name_the_rule
+PASSED tests/test_pipeline.py::test_image_digest_is_stable_and_content_addressed
+PASSED tests/test_pipeline.py::test_validate_inputs_manifest_and_rejections
+PASSED tests/test_pipeline.py::test_embed_images_contract_with_injected_backend
+PASSED tests/test_pipeline.py::test_embed_images_rejects_backend_shape_drift
+PASSED tests/test_pipeline.py::test_embed_texts_contract_and_rejections
+PASSED tests/test_pipeline.py::test_zero_shot_contract_and_label_handling
+PASSED tests/test_pipeline.py::test_classify_requires_adaptation
+PASSED tests/test_pipeline.py::test_classify_contract_preserves_class_order
+PASSED tests/test_pipeline.py::test_classify_rejects_logits_that_do_not_match_classes
+PASSED tests/test_pipeline.py::test_save_and_load_artifact_require_a_loaded_model
+PASSED tests/test_role_helpers.py::test_validate_inputs_returns_manifest_with_schema_and_identity
+PASSED tests/test_role_helpers.py::test_validate_inputs_default_ids
+PASSED tests/test_role_helpers.py::test_dataset_manifest_reports_ceilings
+PASSED tests/test_weight_facts.py::test_repository_weight_facts_match_manifests
+PASSED tests/test_weight_facts.py::test_wrong_byte_count_is_rejected
+PASSED tests/test_weight_facts.py::test_wrong_digest_is_rejected
+PASSED tests/test_weight_facts.py::test_grouped_total_bytes_is_read_whole
+PASSED tests/test_weight_facts.py::test_spaced_byte_count_is_read_whole
+============================= 99 passed in 53.69s =============================
+```
+
+## Fix branch, PyTorch hidden (CI emulation)
+
+```text
+SKIPPED [1] tests\test_biodiversity_runtime.py:46: could not import 'torch': torch deliberately unavailable (CI emulation)
+SKIPPED [1] tests\test_biodiversity_runtime.py:57: could not import 'torch': torch deliberately unavailable (CI emulation)
+SKIPPED [1] tests\test_biodiversity_runtime.py:83: could not import 'torch': torch deliberately unavailable (CI emulation)
+SKIPPED [1] tests\test_capstone_review_fixes.py:180: could not import 'torch': torch deliberately unavailable (CI emulation)
+SKIPPED [1] tests\test_capstone_review_fixes.py:206: could not import 'torch': torch deliberately unavailable (CI emulation)
+======================= 94 passed, 5 skipped in 28.16s ========================
+```
+
+## New tests against PR head 771551b
+
+```text
+FAILED tests/test_capstone_review_fixes.py::test_head_learning_rate_grid_is_predeclared
+FAILED tests/test_capstone_review_fixes.py::test_head_can_leave_zero_shot_when_validation_supports_it
+FAILED tests/test_capstone_review_fixes.py::test_adapt_head_reports_selection_and_distance_from_zero_shot
+FAILED tests/test_capstone_review_fixes.py::test_notebook_explains_rate_selection_and_shows_head_record
+FAILED tests/test_capstone_review_fixes.py::test_siglip_stage_uses_documented_lowercase_64_token_text
+FAILED tests/test_capstone_review_fixes.py::test_perfect_classifier_has_degenerate_macro_f1_interval
+FAILED tests/test_capstone_review_fixes.py::test_exported_intervals_are_species_stratified
+FAILED tests/test_capstone_review_fixes.py::test_runtime_summary_reports_bootstrap_downloads_and_stages
+FAILED tests/test_capstone_review_fixes.py::test_notebook_records_bootstrap_timing_and_renders_runtime
+FAILED tests/test_capstone_review_fixes.py::test_archive_verification_is_real_and_displayed
+FAILED tests/test_capstone_review_fixes.py::test_repeat_and_reload_probe_use_matching_batches
+FAILED tests/test_capstone_review_fixes.py::test_reload_expectation_comes_from_the_matched_batch
+FAILED tests/test_capstone_review_fixes.py::test_activity_uses_adjacent_validation_candidates
+FAILED tests/test_capstone_review_fixes.py::test_error_panel_names_categories_and_falls_back
+FAILED tests/test_capstone_review_fixes.py::test_error_panel_annotations_and_csv
+FAILED tests/test_capstone_review_fixes.py::test_observer_concentration_and_audit_from_frozen_manifest
+FAILED tests/test_capstone_review_fixes.py::test_learner_text_discloses_concentration_taxonomy_and_location_limits
+FAILED tests/test_capstone_review_fixes.py::test_probes_listed_for_every_system
+FAILED tests/test_capstone_review_fixes.py::test_majority_top2_is_undefined_and_parity_still_holds
+FAILED tests/test_capstone_review_fixes.py::test_risk_rows_sorted_and_palette_colour_blind_safe
+FAILED tests/test_capstone_review_fixes.py::test_no_filelink_objectives_listed_and_revision_consistent
+FAILED tests/test_capstone_review_fixes.py::test_byod_accepts_one_enclosing_folder_and_explains_bad_csv
+22 failed in 42.28s
+```
+
+## Revision 0.2.1-candidate (hosted-run fix)
+
+```text
+Full suite (PyTorch available): 103 passed in 36.80s
+PyTorch hidden (CI emulation): 98 passed, 5 skipped in 33.16s
+tests/test_capstone_hosted_run_fixes.py against 5131aa2:
+PASSED tests/test_capstone_hosted_run_fixes.py::test_every_stage_process_uses_the_sanitised_environment
+FAILED tests/test_capstone_hosted_run_fixes.py::test_stage_module_imports_under_the_colab_inline_backend
+FAILED tests/test_capstone_hosted_run_fixes.py::test_bootstrap_does_not_leak_kernel_settings_into_stage_processes
+========================= 2 failed, 1 passed in 0.80s =========================
+(test_every_stage_process_uses_the_sanitised_environment is a guard and passes on both;
+test_bootstrap_reports_progress_and_the_gpu_it_verified was added afterwards and fails on 5131aa2 by construction.)
+```
+
+## Revision 0.2.2-candidate (synthetic-probe verification)
+
+```text
+Full suite (PyTorch available): 106 passed in 41.88s
+PyTorch hidden (CI emulation): 101 passed, 5 skipped in 29.44s
+tests/test_capstone_hosted_run_fixes.py against ebaed9e:
+PASSED tests/test_capstone_hosted_run_fixes.py::test_stage_module_imports_under_the_colab_inline_backend
+PASSED tests/test_capstone_hosted_run_fixes.py::test_bootstrap_does_not_leak_kernel_settings_into_stage_processes
+PASSED tests/test_capstone_hosted_run_fixes.py::test_bootstrap_reports_progress_and_the_gpu_it_verified
+PASSED tests/test_capstone_hosted_run_fixes.py::test_later_stages_reverify_the_synthetic_cache
+PASSED tests/test_capstone_hosted_run_fixes.py::test_every_stage_process_uses_the_sanitised_environment
+FAILED tests/test_capstone_hosted_run_fixes.py::test_synthetic_blank_is_verified_by_pixels_not_encoder_bytes
+FAILED tests/test_capstone_hosted_run_fixes.py::test_photographs_keep_byte_exact_verification
+========================= 2 failed, 5 passed in 1.26s =========================
+(test_later_stages_reverify_the_synthetic_cache is a guard: this workstation's Pillow reproduces the
+manifest bytes, so the old byte check also refuses the altered image here.)
+```

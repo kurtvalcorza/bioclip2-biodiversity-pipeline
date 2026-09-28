@@ -136,6 +136,185 @@ runtime, not general estimates.
 | 2026-09-18 | `a43fdf5` / `60e7655f` | Local pre-flight harness (Windows, CPython 3.12.10, CPU float32, `open_clip 3.3.0`) | Default sample path (validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload); weights pre-staged, so `stage_missing_files` fetched 0 of 3 entries and `verify_snapshot` verified all 3 | 49.2 s | **PASSED** — 15/15 code cells; zero-shot 12/12; head-only adaptation 3,076 params in 15.9 s; test accuracy/macro-F1/AUROC 1.0 (n=12) against majority 0.25/0.1 and colour 0.25/0.1909; delta vs zero-shot 0.0; 6/6 held-out; reload parity 0.0. Pre-flight; hosted clean-runtime run still required |
 | 2026-09-18 | `22f2854` / `60e7655f` | Kaggle fresh GPU container, CPython 3.12.13, Tesla T4, `torch 2.14.0+cu130`, CUDA 13.0, `open_clip 3.3.0`; exact fetched blob verified; empty Hub cache | Default standalone path from an empty snapshot (install → expected restart → fetch and digest-verify → validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload) | 265.3 s | **PASSED** — 15/15 code cells after one expected restart; all 3 snapshot entries verified (1.71 GB staged); zero-shot 12/12; majority 0.25/0.1; colour 0.25/0.1909; head-only adaptation of 3,076 params in 3.18 s; test accuracy/macro-F1/AUROC 1.0 (n=12), delta vs zero-shot 0.0; 6/6 held-out; adapter reload parity 0.0; preserved outputs include the evaluation, predictions, embeddings, sample data, adapter, result, contact sheet and embedded images with hashes recorded by the executor. This is qualification evidence, not a maintainer promotion decision. |
 
+
+## Philippine biodiversity capstone — review fixes, hosted-run fixes and hosted default-path run, revisions 0.2.0- to 0.2.2-candidate (2026-09-28)
+
+Scope: `tutorials/DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb`, a separate notebook
+with its own evidence; nothing in this section changes the original tutorial's record above.
+The review of PR head `771551b` (notebook blob `355f4e3f`) was a source inspection of an
+unexecuted notebook. It is archived with its probes and a per-finding fix report in
+`reviews/2026-09-28-notebook-review/`.
+
+| Finding | Severity | Fix | Regression test (`tests/test_capstone_review_fixes.py`) |
+|---|---|---|---|
+| BC-M1 head effectively equals zero-shot (lr 1e-4 × 80 steps on scale-100 weights) | Major | Predeclared grid 1e-4/1e-3/1e-2; validation selects rate and epoch; displacement and zero-shot agreement exported and shown | `test_head_learning_rate_grid_is_predeclared`, `test_head_can_leave_zero_shot_when_validation_supports_it`, `test_adapt_head_reports_selection_and_distance_from_zero_shot`, `test_notebook_explains_rate_selection_and_shows_head_record` |
+| BC-M2 SigLIP 2 text not lowercased, not padded to 64 tokens | Major | Documented convention applied and asserted; `siglip_preprocessing.json` | `test_siglip_stage_uses_documented_lowercase_64_token_text` |
+| BC-M3 macro-F1 bootstrap counts an absent species as F1 = 0 | Major | Species-stratified record bootstrap; observer-cluster interval removed | `test_perfect_classifier_has_degenerate_macro_f1_interval`, `test_exported_intervals_are_species_stratified` |
+| BC-m1 runtime/resources hidden, total understated | Minor | Bootstrap timings, dataset download, `runtime_summary.csv` displayed | `test_runtime_summary_reports_bootstrap_downloads_and_stages`, `test_notebook_records_bootstrap_timing_and_renders_runtime` |
+| BC-m2 archive checks missing from the record | Minor | `verify_archive` (CRC, digests, paths, exclusions, metric recomputation) shown in §11 | `test_archive_verification_is_real_and_displayed` |
+| BC-m3 parity across different batch compositions | Minor | Same-batch repeat; reload probe embedded as one batch; cross-batch difference recorded | `test_repeat_and_reload_probe_use_matching_batches`, `test_reload_expectation_comes_from_the_matched_batch` |
+| BC-m4 threshold activity offsets ±0.1, 4-decimal display | Minor | Adjacent validation candidates; 10-significant-digit thresholds; accepted counts | `test_activity_uses_adjacent_validation_candidates` |
+| BC-m5 error-panel categories unlabelled, dropped silently | Minor | Named categories, fallback selection, `error_panel.csv` | `test_error_panel_names_categories_and_falls_back`, `test_error_panel_annotations_and_csv` |
+| BC-m6 observer concentration undisclosed | Minor | `observer_roles.csv`; manifest-computed prose | `test_observer_concentration_and_audit_from_frozen_manifest`, `test_learner_text_discloses_concentration_taxonomy_and_location_limits` |
+| BC-m7 audit display incomplete; crop not shown | Minor | `dataset_audit.csv`, crop boxes on the contact sheet, crop limitations surfaced | same two tests as BC-m6 |
+| BC-m8 §16 statements; subspecies record undisclosed in the notebook | Minor | Location, reconstruction and counting statements; subspecies disclosure | `test_learner_text_discloses_concentration_taxonomy_and_location_limits` |
+| BC-m9 probes shown for the head only | Minor | All eight systems listed per probe | `test_probes_listed_for_every_system` |
+| BC-m10 `FileLink` downloads | Minor | Files-panel paths; optional `DOWNLOAD_RESULTS` | `test_no_filelink_objectives_listed_and_revision_consistent` |
+| BC-m11 majority top-2 is a tie-break artefact | Minor | Reported as undefined; parity check updated | `test_majority_top2_is_undefined_and_parity_still_holds` |
+| BC-m12 risk plot doubles back; `tab10` palette | Minor | Sorted rows, separate canonical marker, Okabe-Ito palette | `test_risk_rows_sorted_and_palette_colour_blind_safe` |
+| BC-m13 objectives not listed; head config not shown | Minor | Nine objectives in §1; `head_training.json` shown | `test_no_filelink_objectives_listed_and_revision_consistent`, `test_notebook_explains_rate_selection_and_shows_head_record` |
+| BC-m14 specification drift | Minor | Disk and BYOD-group deviations were already recorded in `biodiversity-capstone.md`; folder-map and learning-rate deviations added | documentation only |
+| BC-m15 BYOD re-download, enclosing folder, bad CSV | Minor | Snapshot hard links; enclosing folder accepted; actionable CSV/layout errors | `test_byod_accepts_one_enclosing_folder_and_explains_bad_csv` |
+
+Suggestions: BC-S1 (post-release subset) is implemented as a descriptive audit row, and BC-S3
+(network hosts) in §2. BC-S2 (verify the synthetic blank by decoded pixels) and BC-S4 (branch
+Colab badge) are not implemented: the blank's byte digest is part of the frozen manifest, and
+the badge must point at `main` once merged.
+
+Offline evidence for this revision (2026-09-28, Windows, CPython 3.12.14, CPU torch 2.13.0,
+numpy 2.5.3, Pillow 12.3.0): 99 tests pass; with PyTorch hidden, as in CI, 94 pass and 5 skip;
+the 22 new tests all fail on `771551b`. Ruff, `validate_release_assets.py` and both generator
+parity checks pass. No model weights, SigLIP tokenizer or iNaturalist photograph was loaded,
+so none of the fixes has been observed with real models. The learning-rate grid in
+particular has been exercised only on synthetic features.
+
+### Maintainer-supplied Colab execution of revision 0.2.0-candidate — 2026-09-28
+
+| Item | Value |
+|---|---|
+| File | `execution-evidence/2026-09-28/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_0.2.0-candidate.ipynb`, copied byte for byte |
+| SHA-256 | `3189f3e009a419ca06c629cd7786265b4f838de16e8082b9162e8d34b2d1d081` (454,876 bytes) |
+| Source match | All 36 cells have the same ids and sources as notebook blob `9774379b` at `5131aa2`; no form parameter was changed |
+| Runtime | Google Colab, Tesla T4 (printed by the preflight cell); notebook metadata `accelerator: GPU`, `gpuType: T4` |
+| Executed | Code cells 1–4 in order (execution counts 1–4): preflight, carrier verification ("Embedded implementation, dependencies and manifests verified."), environment bootstrap, then §3 |
+| Result | **FAILED in the first stage.** `run_stage('prepare')` exited 1 because `import matplotlib` raised `ValueError: Key backend: 'module://matplotlib_inline.backend_inline' is not a valid value`. The remaining 10 code cells did not run; no metrics were produced. |
+| Cause | Colab exports `MPLBACKEND=module://matplotlib_inline.backend_inline`; the bootstrap copied the kernel environment into every stage process, and the isolated environment has no matplotlib-inline. The same code is present at `771551b`, so the defect predates the review fixes. |
+| Positive evidence | The bootstrap cell completed without error, and its `check=True` probe (`assert torch.cuda.is_available()` inside the isolated environment) passed. The locked CUDA 13 torch wheels therefore installed and saw the T4 on this Colab image. Versions were not captured, because the probe's output went to the process stream, not the notebook. |
+| Evidence boundary | Saved outputs were inspected; execution was not independently repeated. |
+| Fixed in | revision 0.2.1-candidate: stage processes force `MPLBACKEND=Agg` (in the bootstrap environment and in `capstone.py` before `import matplotlib`) and drop `PYTHONPATH`, `PYTHONHOME` and `PYTHONSTARTUP`. The bootstrap now prints progress and the Python, torch, CUDA and GPU it verified. Tests: `tests/test_capstone_hosted_run_fixes.py` (4 tests; the two behavioural ones fail on `5131aa2`). |
+| Open | Everything from §3 onward, i.e. the whole evidence list below. |
+
+### Maintainer-supplied Colab execution of revision 0.2.1-candidate — 2026-09-28
+
+| Item | Value |
+|---|---|
+| File | `execution-evidence/2026-09-28/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_0.2.1-candidate.ipynb`, copied byte for byte |
+| SHA-256 | `92fcfab72b5a609d84b2570a64af62d0b8e41d1532e26675a96e0eb0917d792e` (457,070 bytes) |
+| Source match | All 36 cells have the same ids and sources as notebook blob `26f290f3` at `ebaed9e`; no form parameter was changed |
+| Runtime | Google Colab, Tesla T4. The bootstrap printed: Python 3.12.12, torch 2.11.0+cu130, CUDA 13.0, GPU Tesla T4. Environment ready in 69 s (uv 1 s, venv 2 s, install 63 s). |
+| Executed | Code cells 1–4 in order (execution counts 1–4) |
+| Result | **FAILED in `prepare`** with `ValueError: Photo size/hash mismatch: blank-control`. The remaining 10 code cells did not run; no metrics were produced. |
+| What passed first | The 0.2.1 environment fix worked: `capstone.py` imported, and `prepare` validated the manifest and exclusions. `validate_images` checks records before probes, and the blank control is the last probe, so all 60 iNaturalist photographs (56 canonical, 4 probes) were downloaded and passed the size, SHA-256, decode, dimension, GPS-EXIF, duplicate-pixel and dHash checks on Colab before the failure. |
+| Cause | The synthetic blank control is generated at runtime by encoding a constant 224 × 224 PNG. Its manifest byte digest came from the freezing machine's encoder (reproducible there with zlib-ng at level 6), and the Pillow wheel on Colab encoded different bytes. The 2026-09-28 review had flagged this as suggestion BC-S2. |
+| Evidence boundary | Saved outputs were inspected; execution was not independently repeated. |
+| Fixed in | revision 0.2.2-candidate: synthetic probes are verified by the SHA-256 of their decoded pixels (`verify_cached`), and later stages re-verify the cache the same way. Photographs keep byte-exact verification. The frozen manifest is unchanged. Tests: three added to `tests/test_capstone_hosted_run_fixes.py`. |
+
+Offline check of the full stage chain for 0.2.2-candidate (not hosted evidence): the carried
+`capstone.py` ran all nine stages, the threshold activity at `lower` and `higher`, the
+fresh-process reload and the report. Each stage ran in its own process with Colab's
+`MPLBACKEND` set. The inputs were a synthetic photo cache (random images with the manifest's
+dimensions; record digests rewritten) and deterministic stub encoders in place of BioCLIP and
+SigLIP. The head fit, selection, evaluation, triage, reload parity (max error 0.0) and archive
+verification ran unmodified. This is software evidence only.
+
+### Maintainer-supplied Colab execution of revision 0.2.2-candidate — 2026-09-28
+
+| Item | Value |
+|---|---|
+| File | `execution-evidence/2026-09-28/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_0.2.2-candidate.ipynb`, copied byte for byte |
+| SHA-256 | `bfecf50b8db3ae5c5158afdea64448cc5594c7b886ed63037865d0e6eee98398` (9,018,568 bytes) |
+| Source match | All 36 cell ids are in order and all sources are identical to notebook blob `fd96c48d` at `f8fc8e3`, except one line Colab inserted at the top of the collapsed carrier cell `code-04`: the comment `# @title`, which adds no code. No form parameter was changed. |
+| Runtime | Google Colab, Tesla T4. Isolated Python 3.12.12, torch 2.11.0+cu130, CUDA 13.0. Environment ready in 57 s (install 54 s). Wall clock from the first cell to the report: 287 s. |
+| Executed | **All 14 code cells, execution counts 1–14 in order, no errors** (a single Run all). All nine stages completed with receipts. |
+| Downloads | 60 photographs (23,918,875 bytes) in 97 s, including validation; SigLIP 2 1,539,456,760 bytes in 21 s; BioCLIP 2 1,710,538,981 bytes in 16 s. The synthetic blank was generated and passed decoded-pixel verification. |
+| Peak VRAM / host RAM | SigLIP stage 1.58 GB / 2.49 GB; BioCLIP stage 1.83 GB / 4.27 GB; reload 1.75 GB / 4.25 GB; the head fit ran on CPU (0.70 GB host RAM). |
+| Preprocessing | SigLIP labels lowercased, padded to 64 tokens (the stage asserts N × 64 input ids). |
+| Head selection (validation only) | lr 0.01 and epoch 20 selected, both the largest values in the grid and the schedule. Validation cross-entropy 0.018 against 0.235 at epoch 0. `head_equals_zero_shot` False. Maximum logit change 3.48; 2 of 44 train and validation predictions differ from zero-shot. |
+| Referral policy | The locked threshold of 0.6202 (the smallest validation margin) gives 100% validation coverage at 100% selective accuracy. On test: 12/12 accepted, 0 incorrect accepted. |
+| Reload and archive | Fresh process (PID 2790 → 2839); max absolute error 0.0; identical labels and referrals. `results.zip`: 44 members, 65,619 bytes; CRC, digests, paths, exclusions and 8-system metric recomputation all passed. |
+| Evidence boundary | Saved outputs were inspected; execution was not independently repeated. |
+
+Held-out test results, 12 photographs from 4 photographers (species-stratified bootstrap, 2,000 draws):
+
+| System | Accuracy | Macro-F1 | Macro-F1 95% interval | Top-2 | Paired difference vs BioCLIP scientific |
+|---|---:|---:|---|---:|---:|
+| majority | 0.250 | 0.100 | 0.100–0.100 | undefined | −0.750 |
+| colour | 0.500 | 0.439 | 0.259–0.617 | 0.917 | −0.500 |
+| SigLIP 2, common names | 0.500 | 0.364 | 0.338–0.402 | 0.667 | −0.500 |
+| SigLIP 2, scientific names | 0.333 | 0.270 | 0.188–0.351 | 0.500 | −0.667 |
+| BioCLIP 2, common names | 0.917 | 0.914 | 0.667–1.000 | 1.000 | −0.083 |
+| BioCLIP 2, scientific names (canonical zero-shot) | 1.000 | 1.000 | 1.000–1.000 | 1.000 | 0.000 |
+| BioCLIP 2 5-NN | 1.000 | 1.000 | 1.000–1.000 | 1.000 | 0.000 |
+| **BioCLIP 2 head (primary)** | **1.000** | **1.000** | 1.000–1.000 | 1.000 | 0.000 |
+
+Validation (12 photographs): SigLIP common 0.750 / 0.652, SigLIP scientific 0.500 / 0.375, BioCLIP
+common 1.000 / 1.000, BioCLIP scientific 0.917 / 0.914, 5-NN 1.000 / 1.000, colour 0.417 / 0.411,
+majority 0.250 / 0.100 (accuracy / macro-F1). Closed-set probes: the head named Philippine
+Pied-Fantail for all five probes. It accepted the flowerpecker (margin 0.911), the butterfly (0.997)
+and the snail (0.995), and referred the sparrow (0.195) and the blank control (0.526).
+
+Journeys:
+
+| Journey | Verdict |
+|---|---|
+| Clean default (Run all, defaults) | **PASS** on this runtime |
+| Threshold activity at `lower` / `higher` | Not assessed in this run: only `canonical` was executed. The recorded neighbours are 0 (lower) and 0.999889 (higher). Assessed in the two follow-up runs below. |
+| §11 re-run after the activity | Not assessed in this run; assessed below |
+| BYOD (grouped or inference-only) | Not assessed in this run (default off) |
+
+Observations for the maintainer, none of which blocks the default path:
+
+1. Test performance is at ceiling for three BioCLIP systems (1.0 with degenerate intervals). This run therefore cannot distinguish the head from zero-shot on test; the head changed only 2 train and validation predictions.
+2. The selected learning rate and epoch are the largest in the grid and the schedule, and validation loss was still falling at epoch 20.
+3. One creator's name, 呂一起 (Lyu yi-chi), is rendered with missing glyphs in the photo panels (Matplotlib's DejaVu Sans lacks CJK). The romanised name and the licence remain legible, and `attribution.csv` is exact.
+4. Each check above applies to this run only; the tiny sample means small changes can move these numbers.
+
+Evidence still required before this capstone can leave Candidate:
+
+1. a fresh Colab T4 **Run all** of the exact 0.2.2-candidate (or later) commit with default settings, recording the notebook
+   blob, all 14 code cells, runtime, peak RAM/VRAM and the observed metrics;
+2. confirmation in that run that the SigLIP text is 64 tokens, that the selected learning rate
+   and epoch and `head_equals_zero_shot` are reported, and that reload parity passes;
+3. the threshold activity run at `lower` and `higher` followed by the §11 cell, and at least
+   one BYOD run (grouped or inference-only);
+4. the maintainer's review of photo attribution and use.
+
+Capstone executions so far: the 0.2.0- and 0.2.1-candidate runs failed in `prepare`, and the 0.2.2-candidate run passed the clean default path. Items 1 and 2 of the list above are met for notebook blob `fd96c48d`. Items 3 and 4 remained open after that run; see the follow-up runs below.
+
+### Maintainer-supplied Colab executions of 0.2.2-candidate at `THRESHOLD_VIEW = lower` and `higher` — 2026-09-28
+
+| Item | `lower` run | `higher` run |
+|---|---|---|
+| File | `execution-evidence/2026-09-28/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_0.2.2-candidate_threshold-lower.ipynb`, byte for byte | `…_0.2.2-candidate_threshold-higher.ipynb`, byte for byte |
+| SHA-256 | `3f8ac6285d6de1dd3601a5ecedfefc8fd573cc32bfa2e52b1e6d966a2ae2a8cb` (9,014,662 bytes) | `bcd545e838d910983bc92f3245c7e2f3729e8b09c837d2a469d2fae016bace29` (10,356,135 bytes) |
+| Source match | All 36 cell ids and sources identical to blob `fd96c48d` except Colab's `# @title` line in `code-04` and the single form value in `code-26` | same |
+| Form change | `THRESHOLD_VIEW = 'lower'` | `THRESHOLD_VIEW = 'higher'` |
+| Executed | All 14 code cells, execution counts 1–14, no errors; §11 (`code-32`) ran after the activity | same |
+| Environment | Fresh install: ready after uv 1 s, venv 2 s, install 59 s | Warm runtime: the existing isolated environment was reused (venv 0 s, install 8 s) and verified, so a repeated Run all in a used runtime also passes |
+| Activity | Display threshold 0: 12/12 accepted, selective accuracy 1.000, 0 incorrect accepted (same as the locked 0.6202) | Display threshold 0.999889479: 7/12 accepted, selective accuracy 1.000, 5 referred, 0 incorrect accepted |
+| Activity is display-only | `display only` True; locked threshold reported as 0.6202107991 in both | same |
+| Unchanged results | Every model output is identical to the canonical run: after normalising the run directory and timings, the outputs of cells `code-07` to `code-25` and `code-29` match the canonical run exactly; adapter SHA-256 `3cd707f4…46dd` in all three runs | same |
+| §11 after the activity | Fresh-process reload (PID 2036 → 2084) max error 0.0, identical labels and referrals; `results.zip` 44 members, 65,581 bytes, all checks including 8-system metric recomputation passed | Reload PID 3634 → 3683, max error 0.0; `results.zip` 44 members, 65,613 bytes, all checks passed |
+| Evidence boundary | Saved outputs were inspected; execution was not independently repeated | same |
+
+The archive sizes differ from the canonical run's 65,619 bytes only because `activity.json` records
+the display view. In the `higher` run the activity figure shows referred photographs, and Matplotlib
+warned about the three missing CJK glyphs (observation 3 above).
+
+Journeys after these runs:
+
+| Journey | Verdict |
+|---|---|
+| Clean default (Run all, defaults) | **PASS** (canonical run) |
+| Threshold activity at `lower` / `higher` | **PASS**: display-only, official metrics unchanged |
+| §11 after the activity | **PASS** in both runs (as part of Run all, after `code-26`) |
+| Repeated Run all in a used runtime | **PASS** (`higher` run reused the environment) |
+| BYOD (grouped or inference-only) | Not assessed (optional, default off) |
+
+Items 1–3 of the evidence list above are met for blob `fd96c48d`, except the BYOD part of item 3.
+Open before the capstone can leave Candidate: one BYOD run and the maintainer's attribution
+review (item 4).
+
 ## Current status
 
 The notebook source passes all static checks, including generator parity (`--check` OK), and exact candidate commit

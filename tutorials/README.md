@@ -35,3 +35,23 @@ enforced by the validator and CI).
 ## AI Assistance Disclosure
 
 This repository’s code and accompanying documentation were developed with generative AI assistance for code development and technical writing under maintainer direction. The maintainer remains responsible for reviewing the implementation, validating results, and making release decisions. AI assistance does not constitute independent verification, provider endorsement, or release approval.
+# Philippine field-survey capstone
+
+`DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb` is a standalone `E2E` / `WORKSHOP`
+learning artifact using DIMER Notebook Specification 2.2. Open the local file in Colab using
+**File > Upload notebook**, select a fresh T4 runtime, and use **Run all** with defaults.
+The new capstone remains **Candidate** until a BYOD run and the maintainer's attribution review are complete.
+The original tutorial and its evidence remain separate.
+
+| Notebook | Revision | Review | Hosted execution | Release status |
+|---|---|---|---|---|
+| `DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb` | `0.2.2-candidate` | 2026-09-28 review findings BC-M1..M3 and BC-m1..m15 fixed; offline tests only | 0.2.2: Colab T4 Run all PASS on 2026-09-28 (14/14 code cells, all nine stages; test macro-F1 of the head 1.000 on 12 photographs); threshold activity at lower and higher with §11 afterwards PASS (display-only, results unchanged); BYOD not yet exercised. The 0.2.0 and 0.2.1 runs failed in `prepare` (fixed) | Candidate — see `../docs/release-verification.md` |
+
+The investigation compares majority, colour, nearest-neighbour, BioCLIP 2 and SigLIP 2 systems
+on 56 licensed Philippine bird photographs. Epoch and referral-policy selection use validation
+data before test metrics appear. It exports attribution, predictions, metrics, a safetensors
+head, checksums and fresh-process reload evidence. It does not estimate national biodiversity
+or establish expert-level identification. Completion records are optional.
+
+Regenerate with `python tools/build_biodiversity_capstone.py`; verify with `--check`.
+See [implementation and qualification notes](../docs/biodiversity-capstone.md).

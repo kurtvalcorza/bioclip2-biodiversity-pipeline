@@ -1,0 +1,95 @@
+{
+  "zero_shot_train_accuracy": 0.75,
+  "zero_shot_validation_accuracy": 0.8333333333333334,
+  "analytic_bound": {
+    "per_element_displacement_typical_adam": 0.008,
+    "per_class_logit_change_bound_unit_norm_features": 0.22970250336881629,
+    "note": "|delta w| <~ lr per Adam step; 80 steps; Cauchy-Schwarz with ||f||=1"
+  },
+  "runs": [
+    {
+      "learning_rate": 0.0001,
+      "optimizer_steps": 80,
+      "selected_epoch": 20,
+      "validation_loss_by_epoch": [
+        0.872869,
+        0.872458,
+        0.872097,
+        0.87169,
+        0.871296,
+        0.870907,
+        0.870524,
+        0.870117,
+        0.869716,
+        0.869354,
+        0.868999,
+        0.868643,
+        0.868256,
+        0.867889,
+        0.867494,
+        0.867141,
+        0.866774,
+        0.866409,
+        0.866049,
+        0.865672,
+        0.865325
+      ],
+      "selected": {
+        "max_abs_weight_change": 0.007275898439780271,
+        "max_abs_logit_change": 0.08311747135575587,
+        "prediction_flips_vs_zero_shot": 0,
+        "train_accuracy": 0.75,
+        "validation_accuracy": 0.8333333333333334
+      },
+      "final_epoch": {
+        "max_abs_weight_change": 0.007275898439780271,
+        "max_abs_logit_change": 0.08311747135575587,
+        "prediction_flips_vs_zero_shot": 0,
+        "train_accuracy": 0.75,
+        "validation_accuracy": 0.8333333333333334
+      }
+    },
+    {
+      "learning_rate": 0.01,
+      "optimizer_steps": 80,
+      "selected_epoch": 20,
+      "validation_loss_by_epoch": [
+        0.872869,
+        0.833567,
+        0.800421,
+        0.765807,
+        0.733653,
+        0.703775,
+        0.676263,
+        0.648382,
+        0.62317,
+        0.60201,
+        0.584186,
+        0.566416,
+        0.55054,
+        0.533677,
+        0.517907,
+        0.505283,
+        0.491755,
+        0.481669,
+        0.472392,
+        0.463085,
+        0.455715
+      ],
+      "selected": {
+        "max_abs_weight_change": 0.5464305188862677,
+        "max_abs_logit_change": 7.6500708675403395,
+        "prediction_flips_vs_zero_shot": 9,
+        "train_accuracy": 1.0,
+        "validation_accuracy": 0.9166666666666666
+      },
+      "final_epoch": {
+        "max_abs_weight_change": 0.5464305188862677,
+        "max_abs_logit_change": 7.6500708675403395,
+        "prediction_flips_vs_zero_shot": 9,
+        "train_accuracy": 1.0,
+        "validation_accuracy": 0.9166666666666666
+      }
+    }
+  ]
+}
