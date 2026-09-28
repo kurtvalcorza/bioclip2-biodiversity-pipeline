@@ -633,8 +633,12 @@ def _validate_notebook_content(
 def validate_notebooks() -> None:
     tutorials = ROOT / "tutorials"
     notebooks = sorted(tutorials.glob("*.ipynb"))
-    _check(len(notebooks) == 1, f"exactly one tutorial notebook is expected, found {len(notebooks)}")
-    path = notebooks[0]
+    capstone_name = "DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb"
+    _check(
+        {p.name for p in notebooks} == {NOTEBOOK_NAME, capstone_name},
+        "Tutorial registry differs from expected notebooks",
+    )
+    path = tutorials / NOTEBOOK_NAME
     _check(path.name == NOTEBOOK_NAME, f"tutorial notebook must be named {NOTEBOOK_NAME}, found {path.name}")
     build = _load_tool("build_notebook")
     notebook = json.loads(_read(path))
@@ -651,7 +655,22 @@ def validate_notebooks() -> None:
         f"DIMER Notebook Specification {NOTEBOOK_SPEC}" in registry,
         "tutorials/README.md must name the notebook spec version",
     )
-    _check("standalone" in registry.lower(), "tutorials/README.md must record that the notebook is standalone")
+    _check(
+        "standalone" in registry.lower(), "tutorials/README.md must record that the notebook is standalone"
+    )
+    capstone = json.loads(_read(tutorials / capstone_name))
+    generated = _load_tool("build_biodiversity_capstone").build()
+    _check(capstone == generated, "Capstone differs from generated source")
+    metadata = capstone["metadata"]["dimer"]
+    _check(metadata["notebook_spec"] == "2.2" and metadata["profile"] == "E2E", "Capstone profile mismatch")
+    _check(metadata["release_status"] == "Candidate", "Capstone lacks hosted release qualification")
+    for cell in capstone["cells"]:
+        if cell["cell_type"] == "code":
+            ast.parse(_cell_source(cell))
+            _check(
+                cell["outputs"] == [] and cell["execution_count"] is None, "Capstone carries stale outputs"
+            )
+    _check(f"`{capstone_name}`" in registry, "Capstone missing from tutorial registry")
 
 
 def validate_all() -> list[str]:

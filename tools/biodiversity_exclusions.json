@@ -1,0 +1,15 @@
+{
+  "script_version": "1.0",
+  "records": [
+    {
+      "id": "inat-210013564-371547712",
+      "reason": "duplicate_or_near_duplicate",
+      "matching_id": "inat-275045310-494320552"
+    },
+    {
+      "id": "inat-223930580-396823954",
+      "reason": "duplicate_or_near_duplicate",
+      "matching_id": "inat-9679016-13229704"
+    }
+  ]
+}

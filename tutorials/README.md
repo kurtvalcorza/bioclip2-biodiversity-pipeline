@@ -35,3 +35,19 @@ enforced by the validator and CI).
 ## AI Assistance Disclosure
 
 This repository’s code and accompanying documentation were developed with generative AI assistance for code development and technical writing under maintainer direction. The maintainer remains responsible for reviewing the implementation, validating results, and making release decisions. AI assistance does not constitute independent verification, provider endorsement, or release approval.
+# Philippine field-survey capstone
+
+`DIMER_Philippine_Biodiversity_Field_Survey_Capstone.ipynb` is a standalone `E2E` / `WORKSHOP`
+learning artifact using DIMER Notebook Specification 2.2. Open the local file in Colab using
+**File > Upload notebook**, select a fresh T4 runtime, and use **Run all** with defaults.
+The new capstone remains **Candidate** until that hosted run and its exported evidence are reviewed.
+The original tutorial and its evidence remain separate.
+
+The investigation compares majority, colour, nearest-neighbour, BioCLIP 2 and SigLIP 2 systems
+on 56 licensed Philippine bird photographs. Epoch and referral-policy selection use validation
+data before test metrics appear. It exports attribution, predictions, metrics, a safetensors
+head, checksums and fresh-process reload evidence. It does not estimate national biodiversity
+or establish expert-level identification. Completion records are optional.
+
+Regenerate with `python tools/build_biodiversity_capstone.py`; verify with `--check`.
+See [implementation and qualification notes](../docs/biodiversity-capstone.md).
