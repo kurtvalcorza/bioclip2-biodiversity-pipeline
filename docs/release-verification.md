@@ -315,6 +315,15 @@ Items 1–3 of the evidence list above are met for blob `fd96c48d`, except the B
 Open before the capstone can leave Candidate: one BYOD run and the maintainer's attribution
 review (item 4).
 
+### Notebook source layout change (2026-10-02)
+
+The carrier cell `code-04` held all carried files on one 374,826-character line, which can make the Colab editor
+unresponsive. The generator now writes each carried string as short concatenated string pieces (longest notebook
+line 1,176 characters). Python joins the pieces into the same text, so every carried implementation, dependency and
+manifest file is unchanged byte for byte. The only carried value that changes is `source.json`, whose
+`generator_sha256` records the edited generator. The notebook blob changes from `fd96c48d` to `9d0097fb`. The hosted
+runs above executed blob `fd96c48d`; a hosted re-run of blob `9d0097fb` is pending.
+
 ## Current status
 
 The notebook source passes all static checks, including generator parity (`--check` OK), and exact candidate commit
