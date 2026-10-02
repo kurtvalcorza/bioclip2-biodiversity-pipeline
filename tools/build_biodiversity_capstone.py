@@ -18,6 +18,27 @@ def sha(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
 
+# Longest string piece written into the notebook. One 374,826-character line risks making the
+# Colab editor unresponsive, so each carried string is an implicitly concatenated run of short
+# pieces inside parentheses; Python joins them back into identical text (same SHA-256).
+CARRIER_PIECE = 1000
+
+
+def carried_literal(value: str) -> str:
+    """Return a Python literal for `value` written as short concatenated string pieces."""
+    pieces = []
+    for line in value.splitlines(keepends=True):
+        pieces.extend(line[i : i + CARRIER_PIECE] for i in range(0, len(line), CARRIER_PIECE))
+    if not pieces:
+        return repr(value)
+    return "(\n" + "".join(f"  {piece!r}\n" for piece in pieces) + " )"
+
+
+def carried_dict_literal(files: dict[str, str]) -> str:
+    """Return a dict literal equal to `files`, with every value split by `carried_literal`."""
+    return "{\n" + "".join(f" {name!r}: {carried_literal(text)},\n" for name, text in files.items()) + "}"
+
+
 def carried_files() -> dict[str, str]:
     files = {
         "bioclip2_biodiversity_pipeline/__init__.py": '"""Isolated capstone carrier for the unchanged pipeline module."""\n'
@@ -368,7 +389,7 @@ Network hosts used: PyPI (the pinned `uv` wheel and the hashed dependency lock),
     code(PREFLIGHT)
     code(
         "CARRIED_FILES = "
-        + repr(files)
+        + carried_dict_literal(files)
         + "\nCARRIED_HASHES = "
         + repr({name: sha(text) for name, text in files.items()})
         + r"""
