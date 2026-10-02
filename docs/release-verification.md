@@ -322,7 +322,18 @@ unresponsive. The generator now writes each carried string as short concatenated
 line 1,176 characters). Python joins the pieces into the same text, so every carried implementation, dependency and
 manifest file is unchanged byte for byte. The only carried value that changes is `source.json`, whose
 `generator_sha256` records the edited generator. The notebook blob changes from `fd96c48d` to `9d0097fb`. The hosted
-runs above executed blob `fd96c48d`; a hosted re-run of blob `9d0097fb` is pending.
+runs above executed blob `fd96c48d`; blob `9d0097fb` was re-run on 2026-10-03 (below).
+
+### Colab CLI execution of revision `5c316dc` (blob `9d0097fb`) — 2026-10-03
+
+| Item | Record |
+| --- | --- |
+| File | [`execution-evidence/2026-10-03/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_5c316dc_colab-cli-t4.ipynb`](execution-evidence/2026-10-03/DIMER_Philippine_Biodiversity_Field_Survey_Capstone_5c316dc_colab-cli-t4.ipynb), SHA-256 `e24c7137641d8cc559ba2f0ee172ec1543ff4f2b06f0bcf43089423774ca0b28`, byte-for-byte copy of the CLI's output notebook |
+| Executor | Google Colab CLI 0.7.4 on a fresh Colab Tesla T4 session, driven by the workspace `colab-cli-serial-test-suite` (`colab new --gpu T4`, `colab exec -f`, `colab stop`). Every code cell ran in order in one kernel; this is not a browser Run all. The CLI does not record `execution_count`, so order is evidenced by its `Executing cell k/14` log |
+| Source match | Downloaded from GitHub at `5c316dc`; git blob `9d0097fbe07e` checked before the session was created; every cell equals the PR head |
+| Result | **PASSED**: 14/14 code cells, no error output; wall 236.6 s (notebook clock 226.3 s; stages 152.1 s) |
+| Equivalence | Compared with the 2026-09-28 default run of blob `fd96c48d` (`0.2.2-candidate`): 12 of 14 code-cell outputs are identical after removing paths and timings; the other two differ only in timings, process ids and the results bundle size (65,612 vs 65,619 bytes). The carrier split changed no runtime behaviour |
+| Boundary | Saved outputs were inspected. The threshold activity variants, BYOD and the Files-panel download were not exercised. Status remains **Candidate** |
 
 ## Current status
 
