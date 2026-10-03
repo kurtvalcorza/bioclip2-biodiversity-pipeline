@@ -1,10 +1,10 @@
 # Release verification
 
-`tutorials/bioclip2_biodiversity_colab.ipynb` (`E2E`, **standalone** carrier) is a **release candidate** until the
-exact notebook revision has executed top-to-bottom in a clean supported runtime. Unit tests, JSON validation,
-code-cell compilation, the generator parity checks and `tools/validate_release_assets.py` are necessary checks but
-are **not** runtime evidence under DIMER Notebook Specification 2.0 (REL8). This file is the durable release-gate
-record.
+`tutorials/bioclip2_biodiversity_colab.ipynb` (`E2E` / `GUIDED`, **standalone** carrier) is a **release candidate**
+until the exact notebook revision has executed top-to-bottom, in one pass, in a clean supported runtime. Unit tests,
+JSON validation, code-cell compilation, the generator parity checks and `tools/validate_release_assets.py` are
+necessary checks but are **not** runtime evidence under DIMER Notebook Specification 2.2 (REL8). This file is the
+durable release-gate record.
 
 ## Automatic coverage (static, every pull request)
 
@@ -12,107 +12,113 @@ CI runs `tools/validate_release_assets.py`, which checks:
 
 - notebook JSON parses; every code cell compiles as plain Python (no `%`/`!` magics); no persisted outputs or
   execution counts; no unresolved placeholder markers; every code cell is preceded by an explanatory markdown cell;
-- exactly one tutorial notebook, named in `tutorials/README.md` with its `E2E` profile, the notebook-spec version
-  and the standalone carrier; `metadata.dimer` declares that profile, spec `2.0`, a §3.3 pedagogical mode,
-  `standalone: true` and `generated_from` (repository, revision, module SHA-256, generator);
+- the tutorial registry in `tutorials/README.md`; `metadata.dimer` declares the `E2E` profile, spec `2.2`, a §3.3
+  pedagogical mode, `standalone: true` and `generated_from` (repository, revision, module SHA-256, generator);
 - the standalone carrier (ST1–ST8, PAR1–PAR4): no clone, repository install or repository import on the primary
-  path; one cell per carried module (`pipeline.py`, `sample_data.py`, `metrics.py`, `samples.py`), each equal to
-  its source after the generator's documented rewrites; the inline `MANIFEST` equal to the committed snapshot
-  manifest and the inline `PINS` equal to the `pyproject.toml` runtime pins; the notebook byte-identical (on LF) to
-  `tools/build_notebook.py` output for its recorded revision; the pinned-install cell with its
-  restart-on-stale-import guard; `NOTEBOOK_SOURCE` recorded in exports;
+  path; one cell per carried module (`pipeline.py`, `sample_data.py`, `metrics.py`, `samples.py`,
+  `head_selection.py`), each equal to its source after the generator's documented rewrites; the inline `MANIFEST`
+  equal to the committed snapshot manifest and the inline `PINS` equal to the `pyproject.toml` runtime pins; the
+  notebook byte-identical (on LF) to `tools/build_notebook.py` output for its recorded revision; `NOTEBOOK_SOURCE`
+  recorded in exports;
+- the isolated runtime (BIO-M1): exactly two `# dimer: kernel cell` cells — the install cell, which verifies the
+  pinned `uv` wheel by size and SHA-256, creates a `--managed-python` 3.12.12 environment, refuses a non-Linux-x86_64
+  platform and installs the carried hash lock (`tutorials/requirements-colab.lock.txt`, digest-checked) with
+  `--require-hashes --only-binary :all:`, and the router that sends every later cell to one persistent worker in that
+  environment; the generator checks that the lock pins every `pyproject.toml` pin and hashes every entry;
 - `MODEL_ID`/`MODEL_REVISION` bound only in the carried module cell (and repeated in the inline manifest, which the
   notebook asserts against the module before fetching), the revision a 40-hex immutable commit, and the same
   identity string in `README.md`, `MODEL_CARD.md` and `docs/WEIGHTS.md` with no stray revisions;
 - the profile-specific public-API calls (`stage_missing_files`, `verify_snapshot`,
-  `BioClip2Pipeline.from_pretrained(weights_dir=...)`, `validate_dataset`, `split_dataset`, `write_dataset_csv`,
-  `sample_provenance`, `validate_inputs`, `pipe.embed_images` with its same-batch and cross-batch assertions,
-  `pipe.zero_shot_evaluate`, the open-set, blank and noise probes, `majority_baseline`, `color_baseline`,
-  `pipe.adapt` with `class_prompts` and its explicit hyperparameters, `pipe.evaluate` on both the validation and
-  the test split with the zero-shot and majority deltas, `pipe.classify`, `pipe.save_artifact`,
-  `BioClip2Pipeline.from_artifact` and the reload-parity assertion), the seven expected `outputs/` paths, the
-  learner-facing statements (scores are not calibrated probabilities, closed-set zero-shot always answers,
-  validation is monitoring only, embeddings are representations, no remote code, split by observation, site or
-  photographer, CC0 provenance) and the gated-off BYOD default; forbidden patterns (credential-in-URL, any
-  `git clone` / `github.com` / repository import on the primary path, a mutable `revision='main'`, direct
-  `open_clip` / `huggingface_hub` / `safetensors` use **outside the carried module cells**,
-  `trust_remote_code=True`, `pickle.load`, `torch.load(` without `weights_only=True`, `extractall(`);
+  `BioClip2Pipeline.from_pretrained(weights_dir=...)`, `validate_dataset`, `split_dataset`,
+  `minimum_records_per_class`, `write_dataset_csv`, `sample_provenance`, `validate_inputs`, `pipe.embed_images` with
+  its same-batch and cross-batch assertions, `pipe.zero_shot_evaluate` with `PROMPT_TEMPLATE`, the open-set, blank and
+  noise probes, `majority_baseline`, `color_baseline`, `select_head` over `LEARNING_RATES` with the selection and the
+  head displacement printed, `pipe.adapt` for the optional unfrozen-block experiment, `pipe.evaluate` on both splits
+  with the zero-shot and majority deltas and the agreement with zero-shot, `pipe.classify`, `pipe.save_artifact`,
+  `BioClip2Pipeline.from_artifact` and the reload-parity assertion, and the Section 13 `fit_head` activity), the
+  BYOD guards (fresh `work/byod`, the extraction root check and symlink refusal, the upload guard, exact prompt keys,
+  the per-class minimum, `outputs/byod/`), the seven expected `outputs/` paths, the learner-facing statements (scores
+  are not calibrated probabilities, closed-set zero-shot always answers, validation chooses and the test split is
+  never looked at, embeddings are representations, no remote code, split by observation, site or photographer, CC0
+  provenance, the BYOD minimum, Linux x86_64 only), the guided layer (who this is for, input → model → output, how
+  to use, roadmap, predictions, what to notice, worked answers, the Section 13 activity, troubleshooting, glossary,
+  conclusion, infrastructure labels), the absence of the stale learner text the review removed, and the gated-off
+  BYOD default; forbidden patterns (credential-in-URL, any `git clone` / `github.com` / repository import on the
+  primary path, a mutable `revision='main'`, direct `open_clip` / `huggingface_hub` / `safetensors` / training use
+  **outside the carried module cells**, `trust_remote_code=True`, `pickle.load`, `torch.load(` without
+  `weights_only=True`, `extractall(`);
 - `STATUS.md`, `README.md` and `tutorials/README.md` agree on one release-status token and no document makes an
   unsupported release-grade, production-readiness or benchmark claim;
 - `MODEL_CARD.md` front matter (`model_card_spec: "1.1"`), single H1, the 19 required headings in order, and the
   immutable provenance section.
 
-CI also runs `ruff check src tests tools`, `tools/build_notebook.py --check`, and the offline unit suite
-(`tests/test_pipeline.py`, `tests/test_adaptation.py`, `tests/test_role_helpers.py`,
-`tests/test_import_boundary.py`, `tests/test_notebook_parity.py`; injected backends and temporary manifests, no
-weights and no model library — only Pillow, because decoding is the image validation; the embedded sample's dataset
-digest is pinned). These are source/provenance and unit checks. They are
-**not** execution evidence.
+CI also runs `ruff check src tests tools`, `tools/build_notebook.py --check`, `tools/build_biodiversity_capstone.py
+--check` and the offline unit suite (injected backends and temporary manifests, no weights and no model library —
+only Pillow, because decoding is the image validation; tests that need `torch` skip; the embedded sample's dataset
+digest is pinned). `tests/test_bioclip2_biodiversity_colab_review_fixes.py` executes the notebook's Section 4 verbatim
+against the BYOD cases of the 2026-10-02 review. These are source/provenance and unit checks. They are **not**
+execution evidence.
 
 ## Executor paths
 
 | Path | Runtime | Role |
 |---|---|---|
-| Google Colab (supported user path) | Colab CPU runtime (CUDA used automatically when present) | The runtime the tutorial is written for; a clean top-to-bottom run here is promotion evidence |
-| Kaggle CLI kernel or equivalent fresh container | Fresh CPU or GPU container, Python 3.12 image; the committed notebook executed verbatim in a fresh interpreter with a `google.colab` shim and **no repository checkout** (the notebook is standalone) | Reproducible clean-room executor of the same class; promotion evidence |
-| Local harness (pre-flight only) | Workstation, sequential cell executor with a `google.colab` shim, pre-staged pins | Builder pre-flight to catch defects before spending cloud runs; **not** a supported runtime and **not** promotion evidence |
+| Google Colab (supported user path) | Colab Linux x86_64 CPU or GPU runtime | The runtime the tutorial is written for; a clean one-pass top-to-bottom run here is promotion evidence |
+| Kaggle CLI kernel or equivalent fresh container | Fresh Linux x86_64 CPU or GPU container; the committed notebook executed verbatim with a `google.colab` shim and **no repository checkout** (the notebook is standalone) | Reproducible clean-room executor of the same class; promotion evidence when it runs in one pass |
+| Local harness (pre-flight only) | Workstation, sequential cell executor with a `google.colab` shim, pins pre-installed and the two kernel cells skipped (`DIMER_NOTEBOOK_CI_PREINSTALLED=1`) | Builder pre-flight to catch defects before spending cloud runs; **not** a supported runtime and **not** promotion evidence |
 
 ## Supported release verification procedure
 
 Before changing the registry status from `Candidate` to `Release-grade`:
 
 1. resolve the exact PR/commit head under review and confirm static CI is green;
-2. open that exact notebook revision in a new CPU or CUDA runtime (Colab, or a fresh-container executor above) with
-   **no repository checkout**, an empty Hugging Face cache, and no pre-staged files under the working-directory
-   snapshot `weights/bioclip-2/` (the standalone path writes the manifest itself and stages every listed file, so
-   the directory may not be seeded); expect a 1.71 GB download;
-3. run the notebook top-to-bottom without editing implementation cells (form parameters at their defaults:
-   `USE_BYOD = False`, `VAL_FRACTION = 0.2`, `TEST_FRACTION = 0.25`, `SEED = 42`, `BYOD_CLASS_PROMPTS = {}`,
-   `EPOCHS = 4`, `LEARNING_RATE = 1e-4`, `BATCH_SIZE = 8`, `TRAINABLE_BLOCKS = 0`);
-4. verify that Section 1 reports `NOTEBOOK_SOURCE.repository_revision` equal to the revision recorded in
-   `metadata.dimer.generated_from` and that the installed core package versions equal the inline `PINS`
-   (= `pyproject.toml`): `torch==2.14.0`, `torchvision==0.29.0`, `open_clip_torch==3.3.0`, `timm==1.0.29`,
-   `ftfy==6.3.1`, `regex==2026.9.10`, `huggingface-hub==1.32.0`, `safetensors==0.8.0`, `pillow==12.3.0`,
-   `numpy==2.5.3`;
+2. open that exact notebook revision in a new Linux x86_64 CPU or CUDA runtime (Colab, or a fresh-container executor
+   above) with **no repository checkout**, an empty Hugging Face cache, and no pre-staged files under the
+   working-directory snapshot `weights/bioclip-2/`; expect the isolated-environment install and a 1.71 GB download;
+3. choose **Run all once** without editing implementation cells or restarting (form parameters at their defaults:
+   `USE_BYOD = False`, `BYOD_PATH = ''`, `BYOD_CLASS_PROMPTS = '{}'`, `VAL_FRACTION = 0.2`, `TEST_FRACTION = 0.25`,
+   `SEED = 42`, `PROMPT_TEMPLATE = 'a photo of {}.'`, `EPOCHS = 20`, `BATCH_SIZE = 8`, `TRAINABLE_BLOCKS = 0`,
+   `BLOCK_EPOCHS = 4`, `BLOCK_LEARNING_RATE = 1e-4`, `ACTIVITY_NAMES = 'neutral'`); a run that needs a restart is not a
+   one-pass `Run all` and is not promotion evidence;
+4. verify that Section 1 reports the isolated Python 3.12.12, that the runtime cell reports
+   `NOTEBOOK_SOURCE.repository_revision` equal to the revision recorded in `metadata.dimer.generated_from`, and that
+   the imported core package versions equal the inline `PINS` (= `pyproject.toml`): `torch==2.14.0`,
+   `torchvision==0.29.0`, `open_clip_torch==3.3.0`, `timm==1.0.29`, `ftfy==6.3.1`, `regex==2026.9.10`,
+   `huggingface-hub==1.32.0`, `safetensors==0.8.0`, `pillow==12.3.0`, `numpy==2.5.3`;
 5. verify every default-path stage completes:
-   - pinned runtime installed from the inline `PINS` with no GitHub access;
-   - the four carried module cells execute (defining `BioClip2Pipeline`, `verify_snapshot`, `stage_missing_files`,
-     `decode_image`, `image_digest`, `validate_inputs`, `SAMPLE_RECORDS`, `SAMPLE_IMAGES_B64`,
-     `classification_metrics`, `majority_baseline`, `color_baseline`, `validate_dataset`, `split_dataset`,
-     `generate_sample_dataset`, `sample_provenance`, `write_dataset_csv`, `load_byod_dataset`) with no import of the
-     repository package;
+   - the five carried module cells execute with no import of the repository package;
    - the inline manifest asserted against the module's constants, then `stage_missing_files(..., allow_download=True)`
      reporting the 3 entries fetched from `imageomics/bioclip-2` at the immutable revision, and `verify_snapshot`
      reporting 3 verified files before the model loads;
    - the dataset manifest printed with 48 records, classes `['chipping_sparrow', 'dark_eyed_junco', 'song_sparrow',
-     'white_throated_sparrow']`, 12 each, 224×224, the ceilings, the digest
-     `f8fc68cf251e0365…`, the provenance summary (48 images, CC0-1.0, `location_data: not collected`), the splits
-     28 / 8 / 12, and the contact sheet;
+     'white_throated_sparrow']`, 12 each, 224×224, the ceilings, the digest `f8fc68cf251e0365…`, the provenance
+     summary, the splits 28 / 8 / 12 with the per-class minimum 5, and the contact sheet;
    - three input-validation refusals (garbage bytes, BMP, 16×16) and one acceptance;
-   - `pipe.embed_images` reporting 768-dimensional unit vectors, the same batch twice identical, a single-image
-     versus in-batch difference below `1e-5` (observed ≈1e-7), and writing `outputs/bioclip2_biodiversity_embeddings.csv`;
+   - `pipe.embed_images` reporting 768-dimensional unit vectors, the same batch twice identical and a single-image
+     versus in-batch difference below `1e-5`, and writing `outputs/bioclip2_biodiversity_embeddings.csv`;
    - `pipe.zero_shot_evaluate` on the test split (on the sample: accuracy 1.0, n = 12), the common-name variant, the
      open-set probe naming the species, and a confident label on the blank and noise images;
-   - both trivial baselines reported on the test split (majority accuracy 0.25 on the balanced split; the colour
-     baseline near chance);
-   - `pipe.adapt` reporting `head_initialisation: zero-shot text classifier`, 3,076 trainable of 303,969,284
-     parameters, an epoch-0 validation entry and a four-epoch history;
-   - `pipe.evaluate` reporting validation and test accuracy, macro-F1, AUROC and per-class rows, and writing
-     `outputs/bioclip2_biodiversity_evaluation_report.json` with the three baselines and the deltas against
-     zero-shot and majority;
-   - `pipe.classify` on six held-out test images writing `outputs/bioclip2_biodiversity_predictions.csv` with
-     per-class scores;
+   - both trivial baselines on the test split (majority 0.25 / 0.1; colour 0.25 / 0.1909 in the recorded runs);
+   - `select_head` printing one row per learning rate, the selected rate and epoch, `head_equals_zero_shot` and
+     `head_change` (local CPU check of this version: 1e-2 at epoch 6, head moved 1.96 %, 0 predictions changed);
+   - `pipe.evaluate` reporting validation and test metrics, the agreement with zero-shot, and writing
+     `outputs/bioclip2_biodiversity_evaluation_report.json` with the three baselines, the deltas and the adaptation
+     record;
+   - `pipe.classify` on six held-out test images writing `outputs/bioclip2_biodiversity_predictions.csv`;
    - `pipe.save_artifact` writing `outputs/bioclip2_biodiversity_adapter/{adapter.safetensors,manifest.json}` (2
-     tensors, about 12 KB), and `BioClip2Pipeline.from_artifact` reloading it with identical labels and a maximum
-     absolute score difference below `1e-5` (the cell asserts both);
-   - `outputs/bioclip2_biodiversity_result.json` written with `NOTEBOOK_SOURCE`, the model identity, revision and
-     licence, `remote_code_executed: false`, the dataset manifest and sample provenance, the class prompts, the
-     evaluation report, the predictions, the artifact manifest and the runtime versions;
-6. verify the exports exist and the interpretation section matches the observed path;
-7. record the notebook Git blob id, commit, runtime (platform, Python, PyTorch, open_clip, device), the model
-   identifier and immutable revision, whether the model cache and the weights directory were clean, outcome,
-   produced outputs, the observed metrics (as observations, not a benchmark) and any warning or applicable `SHOULD`
-   deviation in the tables below;
+     tensors, 12,448 bytes), and `BioClip2Pipeline.from_artifact` reloading it with identical labels and a maximum
+     absolute score difference below `1e-5`;
+   - `outputs/bioclip2_biodiversity_result.json` written with `NOTEBOOK_SOURCE`, the model identity, the dataset
+     manifest, the class prompts and template, the evaluation report, the predictions, the artifact manifest and the
+     runtime versions;
+   - the Section 13 activity printing a run-history row (local CPU check: neutral names 0.33 → 0.92 on the test
+     split);
+6. exercise the other journeys: a BYOD positive run (a zip of `<label>/<image>` folders, at least 5 photographs per
+   class) through Section 13 and at least one clear BYOD rejection (REL12), and the `TRAINABLE_BLOCKS = 1` experiment
+   with **Run after** from Section 9;
+7. record the notebook Git blob id, commit, runtime (platform, Python, PyTorch, open_clip, device), whether the model
+   cache and the weights directory were clean, the outcome, produced outputs and the observed metrics (as
+   observations, not a benchmark) in the tables below;
 8. record no access tokens or other secrets.
 
 A known-failing default path in the supported runtime blocks release (REL11).
@@ -122,7 +128,9 @@ A known-failing default path in the supported runtime blocks release (REL11).
 | Notebook | Commit / notebook blob | Date (UTC) | Executor | Outcome |
 |---|---|---|---|---|
 | `bioclip2_biodiversity_colab.ipynb` | `a43fdf5` / `60e7655f` | 2026-09-18 | Local pre-flight harness (Windows, CPython 3.12.10, CPU, `google.colab` shim, pins pre-installed) | PASS — pre-flight only, **not** promotion evidence |
-| `bioclip2_biodiversity_colab.ipynb` | `22f2854` / `60e7655f` | 2026-09-18 | Kaggle fresh GPU container (`gcr.io/kaggle-gpu-images/python@sha256:37c64f7…`, CPython 3.12.13, Tesla T4), strict serial executor v1 | **PASS — supported clean-runtime qualification evidence.** Exact commit and fetched Git blob verified; empty Hub cache and no pre-staged snapshot; one expected interpreter restart after dependency installation; all 15 code cells completed. Repository remains Candidate pending an explicit maintainer promotion decision. |
+| `bioclip2_biodiversity_colab.ipynb` | `22f2854` / `60e7655f` | 2026-09-18 | Kaggle fresh GPU container (`gcr.io/kaggle-gpu-images/python@sha256:37c64f7…`, CPython 3.12.13, Tesla T4), strict serial executor v1 | All 15 code cells completed, but only after a **manual interpreter restart** that followed the in-kernel install. **Not a one-pass `Run all` and not promotion evidence** (review finding BIO-M1, 2026-10-02; this row previously read "supported clean-runtime qualification evidence"). Exact commit and fetched Git blob verified; empty Hub cache and no pre-staged snapshot. |
+
+No one-pass hosted run of the current (isolated-runtime) notebook is recorded yet.
 
 ## Recorded executions
 
@@ -133,8 +141,31 @@ runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-| 2026-09-18 | `a43fdf5` / `60e7655f` | Local pre-flight harness (Windows, CPython 3.12.10, CPU float32, `open_clip 3.3.0`) | Default sample path (validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload); weights pre-staged, so `stage_missing_files` fetched 0 of 3 entries and `verify_snapshot` verified all 3 | 49.2 s | **PASSED** — 15/15 code cells; zero-shot 12/12; head-only adaptation 3,076 params in 15.9 s; test accuracy/macro-F1/AUROC 1.0 (n=12) against majority 0.25/0.1 and colour 0.25/0.1909; delta vs zero-shot 0.0; 6/6 held-out; reload parity 0.0. Pre-flight; hosted clean-runtime run still required |
-| 2026-09-18 | `22f2854` / `60e7655f` | Kaggle fresh GPU container, CPython 3.12.13, Tesla T4, `torch 2.14.0+cu130`, CUDA 13.0, `open_clip 3.3.0`; exact fetched blob verified; empty Hub cache | Default standalone path from an empty snapshot (install → expected restart → fetch and digest-verify → validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload) | 265.3 s | **PASSED** — 15/15 code cells after one expected restart; all 3 snapshot entries verified (1.71 GB staged); zero-shot 12/12; majority 0.25/0.1; colour 0.25/0.1909; head-only adaptation of 3,076 params in 3.18 s; test accuracy/macro-F1/AUROC 1.0 (n=12), delta vs zero-shot 0.0; 6/6 held-out; adapter reload parity 0.0; preserved outputs include the evaluation, predictions, embeddings, sample data, adapter, result, contact sheet and embedded images with hashes recorded by the executor. This is qualification evidence, not a maintainer promotion decision. |
+| 2026-09-18 | `a43fdf5` / `60e7655f` | Local pre-flight harness (Windows, CPython 3.12.10, CPU float32, `open_clip 3.3.0`) | Default sample path (validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload); weights pre-staged, so `stage_missing_files` fetched 0 of 3 entries and `verify_snapshot` verified all 3 | 49.2 s | **PASSED** — 15/15 code cells; zero-shot 12/12; head-only adaptation 3,076 params in 15.9 s; test accuracy/macro-F1/AUROC 1.0 (n=12) against majority 0.25/0.1 and colour 0.25/0.1909; delta vs zero-shot 0.0; 6/6 held-out; reload parity 0.0. Pre-flight; hosted clean-runtime run still required. The head was later shown not to move at its single rate of 1e-4 (BIO-M2) |
+| 2026-09-18 | `22f2854` / `60e7655f` | Kaggle fresh GPU container, CPython 3.12.13, Tesla T4, `torch 2.14.0+cu130`, CUDA 13.0, `open_clip 3.3.0`; exact fetched blob verified; empty Hub cache | Default standalone path from an empty snapshot (install → **manual restart** → fetch and digest-verify → validate → split → reject probes → embed + reproducibility → zero-shot + probes → baselines → adapt → evaluate → classify → export → reload) | 265.3 s | Completed 15/15 code cells **after one manual restart**: not a one-pass `Run all`, not promotion evidence (BIO-M1). All 3 snapshot entries verified (1.71 GB staged); zero-shot 12/12; majority 0.25/0.1; colour 0.25/0.1909; head-only adaptation of 3,076 params in 3.18 s; test accuracy/macro-F1/AUROC 1.0 (n=12), delta vs zero-shot 0.0; 6/6 held-out; adapter reload parity 0.0 |
+| 2026-10-03 | review-fix head of PR #10 (see below) | **Local check only** (Windows, CPython 3.12.12, `torch 2.11.0+cpu` — not the pinned 2.14.0 — `open_clip 3.3.0`, CPU float32, real weights pre-staged by hard link; the two kernel cells skipped with `DIMER_NOTEBOOK_CI_PREINSTALLED=1`; learner cells executed verbatim from the notebook JSON; fake `google.colab` upload) | Default path; `TRAINABLE_BLOCKS = 1` re-run from Section 9; BYOD folder zip 4 × 7 (camera file names) re-run from Section 4; the BYOD contract matrix in Section 4 | 71 s (default learner cells) | Default 17/17 learner cells: zero-shot 12/12; majority 0.25 / 0.1; colour 0.25 / 0.1909; `select_head` chose 1e-2 at epoch 6 (val cross-entropy 0.0116 vs 0.0203 at epoch 0), head moved 1.96 %, 0 of 36 predictions changed; test accuracy / macro-F1 / AUROC 1.0, 12/12 equal to zero-shot, delta 0.0; 12,448-byte adapter, reload parity 0.0; Section 13 neutral names 0.33 → 0.92. `TRAINABLE_BLOCKS = 1`: test 0.9167 / 0.9143, val 1.0 → 0.875, 14 tensors, 50.4 MB, parity 0.0. BYOD 4 × 7 zip: Sections 4–13 ran, splits 16 / 4 / 8, selection kept epoch 0 (head equals zero-shot), test 1.0, parity 0.0, 28 files in `outputs/byod/images/`, the BYOD CSV reloads. BYOD refusals in Section 4: 4 × 3, 4 × 4, 2 × 6 (per-class minimum named), extra prompt keys, MPO, `../` escape (nothing written), symlink member, cancelled upload, no Colab and no path; accepted: 4 × 5, 2 × 7, one enclosing folder, a second upload (its own classes), `BYOD_PATH` folder without Colab. **Not hosted evidence** |
+
+## Review fixes — `bioclip2_biodiversity_colab.ipynb` (review 2026-10-02, PR #10)
+
+The review (`docs/reviews/2026-10-02-notebook-review/bioclip2_biodiversity_colab_Review.md`) found 5 Major and 6
+Minor findings. All are fixed in the generator, the template and the package; the notebook is regenerated. Tests:
+`tests/test_bioclip2_biodiversity_colab_review_fixes.py`.
+
+| Finding | Fix | Evidence |
+|---|---|---|
+| BIO-M1 restart after the in-kernel install; two-pass run recorded as a `Run all` PASS | `tools/build_notebook.py` /2.1 with the fleet uv isolated runtime (pinned uv 0.12.15 wheel by size and SHA-256, managed CPython 3.12.12, hash lock `tutorials/requirements-colab.lock.txt` compiled from `pyproject.toml`, `--require-hashes --only-binary :all:`, one persistent worker); records above corrected; Linux x86_64 only | Validator and tests; the Linux install path was not executed locally — a one-pass hosted run is still required |
+| BIO-M2 the head could not move at 1e-4 | `head_selection.py` (`select_head`, `fit_head`, `head_change`): the capstone's BC-M1 procedure — grid 1e-4 / 1e-3 / 1e-2, 20 epochs, validation cross-entropy selects (rate, epoch), epoch 0 eligible, displacement and agreement reported; lessons that relied on the immobile head rewritten. `pipeline.py` is unchanged because the capstone carries it byte for byte | Local real-weights check above; synthetic `fit_head` test (torch) |
+| BIO-M3 folder BYOD joined the relative root twice | `load_byod_dataset` stores paths relative to the label root | Relative-directory test (fails on `2def984`); local BYOD 4 × 7 run |
+| BIO-M4 stated BYOD limits differed from enforced ones; stale second upload; extra prompt keys; MPO; enclosing folder; cancelled upload | `split_dataset` refuses a class that leaves < 3 training records and names `minimum_records_per_class`; `work/byod` emptied per upload; exact prompt keys; MPO refused with the conversion; one enclosing folder accepted; upload guards | Section 4 executed verbatim in tests and in the local matrix above |
+| BIO-M5 guided layer absent; infrastructure unlabelled | Audience, input → model → output, how to use, roadmap, observable objectives, predictions, what to notice, worked answers, Section 13 activity, troubleshooting, glossary, conclusion; Sections 1–3 labelled, carried code collapsed | Validator guided-layer markers |
+| BIO-m1 string-prefix zip guard | Root check with `is_relative_to`, symlink refusal, 20,000-member / 2 GB cap, all before writing | Tests and local matrix |
+| BIO-m2 user photos in a "sample" CSV, overwritten camera names, EXIF | BYOD data to `outputs/byod/` (replaced per upload), collision-safe names, EXIF GPS warning | Tests; local BYOD run (28 files, CSV reloads). EXIF orientation is not applied (`pipeline.py` unchanged) |
+| BIO-m3 experiments without rerun ranges; stale sample prose | Each experiment names its field and **Run after** range; `PROMPT_TEMPLATE` field; result-dependent prose phrased as the default sample run | Validator stale-text list |
+| BIO-m4 timings without an environment | Every figure names its environment or is labelled an estimate | Source inspection |
+| BIO-m5 doubled braces | Single braces | Validator |
+| BIO-m6 Colab-only BYOD; prompts not a field | `BYOD_PATH` field (zip, folder or table) without `google.colab`; `BYOD_CLASS_PROMPTS` JSON string field | Tests |
+
+Suggestions BIO-S1..S4 are not addressed as such; S1 (spec 2.2) came with the generator update.
 
 
 ## Philippine biodiversity capstone — review fixes, hosted-run fixes and hosted default-path run, revisions 0.2.0- to 0.2.2-candidate (2026-09-28)

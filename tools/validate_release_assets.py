@@ -1,6 +1,6 @@
 """Static release-asset validation for the BioCLIP 2 species-classification DIMER pipeline.
 
-Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.0 §4), the tutorial
+Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.2 §4), the tutorial
 registry, model card, README, STATUS.md and weight documentation for source conformance and
 cross-document identity consistency, and runs the generator parity checks (PAR1-PAR3).
 
@@ -46,7 +46,20 @@ CODE_MARKERS = (
     "class_prompts = dict(SAMPLE_CLASS_PROMPTS)",
     "dataset_manifest = validate_dataset(records)",
     "splits = split_dataset(records, val_fraction=VAL_FRACTION, test_fraction=TEST_FRACTION, seed=SEED)",
-    "write_dataset_csv(records, 'outputs/bioclip2_biodiversity_sample_dataset.csv')",
+    "dataset_csv = 'outputs/bioclip2_biodiversity_sample_dataset.csv'",
+    "write_dataset_csv(records, dataset_csv)",
+    # BIO-M4 / BIO-m1 / BIO-m2 / BIO-m6: BYOD path and prompt fields, a fresh upload directory, a safe zip
+    # extraction, upload guards, the real per-class minimum and exact prompt keys, all before any model call
+    "BYOD_PATH = ''",
+    "BYOD_CLASS_PROMPTS = '{}'",
+    "shutil.rmtree(byod_root)",
+    "if target == base or not target.is_relative_to(base):",
+    "if stat.S_ISLNK(member.external_attr >> 16):",
+    "if len(uploaded) != 1:",
+    "extra_prompts = sorted(set(class_prompts) - set(CLASSES))",
+    "per_class_minimum = minimum_records_per_class(len(CLASSES), VAL_FRACTION, TEST_FRACTION)",
+    "dataset_csv = 'outputs/byod/bioclip2_biodiversity_byod_dataset.csv'",
+    "shutil.rmtree('outputs/byod', ignore_errors=True)",
     "print({'provenance': sample_provenance()})",
     # Stage 5: input validation and rejection probes
     "'max_images_per_call': MAX_IMAGES_PER_CALL",
@@ -56,23 +69,30 @@ CODE_MARKERS = (
     "assert repeat == vectors",
     "assert cross_batch < 1e-5",
     # Stage 7: zero-shot -- the model's own prior, plus the score-semantics probes
-    "baseline_zero_shot = pipe.zero_shot_evaluate(test_records, class_prompts)",
+    "baseline_zero_shot = pipe.zero_shot_evaluate(test_records, class_prompts, template=PROMPT_TEMPLATE)",
+    "PROMPT_TEMPLATE = 'a photo of {}.'",
     "open_set = pipe.zero_shot(",
     "'blank grey image'",
     "'uniform noise image'",
     # Stage 8: trivial baselines fitted on train only
     "baseline_majority = majority_baseline(train_records, test_records, CLASSES)",
     "baseline_color = color_baseline(train_records, test_records, CLASSES)",
-    # Stage 9: bounded fine-tuning from the zero-shot classifier
+    # Stage 9: bounded fine-tuning from the zero-shot classifier; BIO-M2: predeclared grid, validation selection,
+    # head displacement reported (the capstone's BC-M1 fix)
+    "adapt_result = select_head(",
+    "learning_rates=LEARNING_RATES",
+    "'head_equals_zero_shot': adapt_result['head_equals_zero_shot']",
+    "print({'head_change': adapt_result['head_change']})",
     "adapt_result = pipe.adapt(",
     "class_prompts=class_prompts",
     "trainable_blocks=TRAINABLE_BLOCKS",
-    "learning_rate=LEARNING_RATE",
+    "learning_rate=BLOCK_LEARNING_RATE",
     # Stage 10: held-out evaluation with the zero-shot delta
     "val_metrics = pipe.evaluate(val_records)",
     "test_metrics = pipe.evaluate(test_records)",
     "'delta_vs_zero_shot': {k: round(test_metrics[k] - baseline_zero_shot[k], 4) for k in ('accuracy', 'macro_f1')}",
     "'delta_vs_majority': {k: round(test_metrics[k] - baseline_majority[k], 4) for k in ('accuracy', 'macro_f1')}",
+    "'agreement_with_zero_shot': agreement",
     # Stage 11: held-out inference, artifact export, reload parity
     "inference_result = pipe.classify([r['image_bytes'] for r in new_records], names=[r['id'] for r in new_records])",
     "pipe.save_artifact(artifact_dir, metadata=",
@@ -87,16 +107,53 @@ CODE_MARKERS = (
     "open_clip.__version__",
     "safetensors.__version__",
     "'device': pipe.device",
+    # Section 13: the change-one-thing activity
+    "ACTIVITY_NAMES = 'neutral'",
+    "tensors, history, selection = fit_head(",
+    "run_history.append(",
 )
 MARKDOWN_MARKERS = (
     "**Capability:** zero-shot species classification, organism image embeddings and bounded species-classification fine-tuning",
     "CC0",
     "**not calibrated probabilities**",
-    "monitoring only",
+    "Validation chooses; the test split is never looked at",
     "representations",
     "closed-set zero-shot always answers",
     "split by observation, site or photographer",
     "No remote code",
+    "at least **5 photographs per class**",
+    "**Linux x86_64 runtimes only**",
+)
+# Learner-facing text the review fixes removed; it must not come back (BIO-M1 restart/install text, BIO-M2 the
+# head-versus-block lesson drawn from a head that could not move, BIO-M4 the wrong BYOD minimum, BIO-m3/m4 stale
+# sample-specific prose and timings without an environment).
+STALE_MARKDOWN = (
+    "installs the pinned dependencies",
+    "Restart the runtime, then rerun",
+    "the recorded reason the default is 0",
+    "head-only adaptation preserves that",
+    "On the sample it is zero",
+    "at least 8 records and 3 per class",
+    "about two minutes of model time",
+    "about 0.3 s per image",
+    "re-run from that cell",
+    "even one unfrozen block degraded",
+)
+# The guided layer (NOTEBOOK_SPEC 2.2 §3.5, GDL1-GDL15; review BIO-M5): each marker with its minimum count.
+GUIDED_MARKERS = (
+    ("**Who this is for.**", 1),
+    ("**Input → Model → Output.**", 1),
+    ("**How to use this notebook.**", 1),
+    ("**Roadmap:**", 1),
+    ("**Predict before running:**", 7),
+    ("**What to notice:**", 8),
+    ("<summary>Check your reasoning</summary>", 8),
+    ("## 13. Your turn — change one thing", 1),
+    ("**Predict →**", 1),
+    ("## Troubleshooting", 1),
+    ("## Glossary", 1),
+    ("## Conclusion (your notes)", 1),
+    ("> **Infrastructure.**", 3),
 )
 # Direct-library use that must stay inside the carried module cells (G2).
 FORBIDDEN_OUTSIDE_MODULE = (
@@ -116,10 +173,10 @@ FORBIDDEN_OUTSIDE_MODULE = (
 # ---------------------------------------------------------------------------
 # Shared checks. Everything below is source/structure validation only. Passing
 # these checks is NOT clean-runtime execution evidence under DIMER Notebook
-# Specification 2.0; see docs/release-verification.md for the release gate.
+# Specification 2.2; see docs/release-verification.md for the release gate.
 # ---------------------------------------------------------------------------
 
-NOTEBOOK_SPEC = "2.0"
+NOTEBOOK_SPEC = "2.2"
 ALLOWED_PROFILES = {"E2E", "ARTIFACT-INFERENCE", "TASK-INFERENCE", "MULTI-CAPABILITY", "SMOKE"}
 STATUS_TOKENS = ("Candidate", "Release-grade")
 PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME)\b|Insert text here|Tooltip:", re.I)
@@ -614,8 +671,24 @@ def _validate_notebook_content(
     _check(not missing, f"{path.name}: missing required source markers: {missing}")
     present = [label for label, pattern in FORBIDDEN_PATTERNS if pattern.search(code)]
     _check(not present, f"{path.name}: forbidden/insecure source: {present}")
-    leaked = [marker for marker in FORBIDDEN_OUTSIDE_MODULE if marker in outside]
+    # The kernel install cell downloads the pinned uv wheel and verifies its size and SHA-256 (BIO-M1); it is the only
+    # cell outside the carried modules allowed to use urllib.request.
+    kernel = {index for index, source, _tree in code_cells if "# dimer: kernel cell" in source}
+    learner = "\n".join(text for index, text in stripped.items() if index not in embedded and index not in kernel)
+    kernel_raw = [source for index, source, _tree in code_cells if index in kernel]
+    leaked = [marker for marker in FORBIDDEN_OUTSIDE_MODULE if marker in learner]
+    leaked += [m for m in FORBIDDEN_OUTSIDE_MODULE if any(m in _strip_comments(k) for k in kernel_raw)]
     _check(not leaked, f"{path.name}: direct library use outside the carried module cell (G2): {leaked}")
+    _check(len(kernel) == 2, f"{path.name}: exactly two kernel cells (isolated install and router) are expected (BIO-M1)")
+    install = next((k for k in kernel_raw if "LOCK_TEXT = r" in k), "")
+    for needed in ("'--managed-python'", "'--require-hashes'", "'--only-binary'", "':all:'", "UV_SHA256", "LOCK_SHA256", "platform.machine() != 'x86_64'"):
+        _check(needed.replace("'", '"') in install, f"{path.name}: the isolated install cell must use {needed} (BIO-M1)")
+    _check("_ip.input_transformers_cleanup.append(_route_to_isolated_runtime)" in "\n".join(kernel_raw), f"{path.name}: later cells must be routed to the isolated environment (BIO-M1)")
+    stale = [marker for marker in STALE_MARKDOWN if marker in markdown]
+    _check(not stale, f"{path.name}: stale learner-facing text: {stale}")
+    _check("{{" not in markdown and "}}" not in markdown, f"{path.name}: markdown must not show doubled braces (BIO-m5)")
+    short = [(marker, markdown.count(marker), least) for marker, least in GUIDED_MARKERS if markdown.count(marker) < max(least, 1)]
+    _check(not short, f"{path.name}: guided layer incomplete (marker, found, needed): {short}")
     _check(
         f"pipe = {MODEL_LOAD_EXPR}" in outside,
         f"{path.name}: must load through {MODEL_LOAD_EXPR} (INF1)",
