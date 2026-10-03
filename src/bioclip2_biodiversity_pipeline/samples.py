@@ -65,6 +65,8 @@ MAX_ID_CHARS = 64
 MAX_LABEL_CHARS = 64
 REQUIRED_COLUMNS = ("id", "image", "label")  # `image` is a file path in CSV/JSON; bytes in memory
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
+# Folders an archiver adds next to the data (macOS resource forks); never a label.
+IGNORED_DIRS = ("__MACOSX",)
 
 
 def generate_sample_dataset() -> list[dict[str, Any]]:
@@ -237,19 +239,70 @@ def split_dataset(
     for rec in records:
         by_class[rec["label"]].append(dict(rec))
     out: dict[str, list[dict[str, Any]]] = {"train": [], "validation": [], "test": []}
+    need = minimum_records_per_class(len(manifest["classes"]), val_fraction, test_fraction)
     for cls in manifest["classes"]:
         rows = by_class[cls]
         rng.shuffle(rows)
         n_val = max(1, round(len(rows) * val_fraction))
         n_test = max(1, round(len(rows) * test_fraction))
-        if len(rows) - n_val - n_test < 1:
-            raise ValueError(f"class {cls!r} has {len(rows)} records; too few to leave one per split")
+        n_train = len(rows) - n_val - n_test
+        # Adaptation re-validates the training split against MIN_RECORDS_PER_CLASS, so a class
+        # that leaves fewer training records than that is refused here, before any model runs.
+        if n_train < MIN_RECORDS_PER_CLASS:
+            raise ValueError(
+                f"class {cls!r} has {len(rows)} records: the split sends {n_val} to validation and "
+                f"{n_test} to test, which leaves {max(n_train, 0)} in the training split, and adaptation "
+                f"needs at least {MIN_RECORDS_PER_CLASS} per class there. With "
+                f"val_fraction={val_fraction} and test_fraction={test_fraction}, supply at least {need} "
+                "records per class."
+            )
         out["validation"].extend(rows[:n_val])
         out["test"].extend(rows[n_val : n_val + n_test])
         out["train"].extend(rows[n_val + n_test :])
+    if len(out["train"]) < MIN_RECORDS:
+        raise ValueError(
+            f"the training split would hold {len(out['train'])} records and adaptation needs at least "
+            f"{MIN_RECORDS}. With {len(manifest['classes'])} classes, val_fraction={val_fraction} and "
+            f"test_fraction={test_fraction}, supply at least {need} records per class."
+        )
     for part in out.values():
         rng.shuffle(part)
     return out
+
+
+def minimum_records_per_class(
+    n_classes: int, val_fraction: float = 0.2, test_fraction: float = 0.25
+) -> int:
+    """The smallest per-class count for which `split_dataset` leaves a training split that
+    adaptation accepts: at least MIN_RECORDS_PER_CLASS per class and MIN_RECORDS in total.
+
+    With the default fractions this is 5 per class for 3 or more classes and 7 per class for 2.
+    """
+    if n_classes < 2:
+        raise ValueError("classification needs at least 2 classes")
+    for n in range(MIN_RECORDS_PER_CLASS, MAX_RECORDS + 1):
+        n_train = n - max(1, round(n * val_fraction)) - max(1, round(n * test_fraction))
+        if n_train >= MIN_RECORDS_PER_CLASS and n_train * n_classes >= MIN_RECORDS:
+            return n
+    raise ValueError("no per-class count up to MAX_RECORDS satisfies the split; lower the fractions")
+
+
+def _label_dirs(path: Path) -> list[Path]:
+    return sorted(
+        d for d in path.iterdir() if d.is_dir() and d.name not in IGNORED_DIRS and not d.name.startswith(".")
+    )
+
+
+def _label_root(path: Path) -> Path:
+    """The folder whose sub-folders are the labels. A zip often wraps everything in one enclosing
+    folder (`my_photos/<label>/<image>`); that single folder is stepped into."""
+    children = _label_dirs(path)
+    if len(children) == 1:
+        inner = children[0]
+        has_images = any(f.is_file() and f.suffix.lower() in IMAGE_SUFFIXES for f in inner.iterdir())
+        if not has_images and _label_dirs(inner):
+            return inner
+    return path
 
 
 def load_byod_dataset(source: str | Path) -> list[dict[str, Any]]:
@@ -262,14 +315,25 @@ def load_byod_dataset(source: str | Path) -> list[dict[str, Any]]:
     path = Path(source)
     records: list[dict[str, Any]] = []
     if path.is_dir():
-        for label_dir in sorted(p for p in path.iterdir() if p.is_dir()):
+        root = _label_root(path)
+        for label_dir in _label_dirs(root):
             for img in sorted(p for p in label_dir.iterdir() if p.suffix.lower() in IMAGE_SUFFIXES):
+                # Stored relative to the label root and joined to it once below, so a relative
+                # upload directory (the notebook's `work/byod`) is not joined twice.
                 records.append(
-                    {"id": f"{label_dir.name}/{img.name}", "image": str(img), "label": label_dir.name}
+                    {
+                        "id": f"{label_dir.name}/{img.name}",
+                        "image": img.relative_to(root).as_posix(),
+                        "label": label_dir.name,
+                    }
                 )
         if not records:
-            raise ValueError(f"no <label>/<image> files found under {path}")
-        base = path
+            raise ValueError(
+                f"no <label>/<image> files found under {path}: the expected layout is one folder per label "
+                f"holding that label's images ({', '.join(IMAGE_SUFFIXES)}), for example "
+                "song_sparrow/IMG_0001.jpg, or a .csv/.json/.jsonl table of image paths"
+            )
+        base = root
     elif path.is_file():
         text = path.read_text(encoding="utf-8-sig")
         if not text.strip():
@@ -318,16 +382,36 @@ def load_byod_dataset(source: str | Path) -> list[dict[str, Any]]:
             img_path = base / img_path
         if not img_path.is_file():
             raise FileNotFoundError(f"record[{i}] ({rec['id']}) image file not found: {img_path}")
+        data = img_path.read_bytes()
+        _refuse_multi_picture(data, f"record[{i}] ({rec['id']}) {img_path.name}")
         out.append(
             {
                 "id": str(rec["id"]),
-                "image_bytes": img_path.read_bytes(),
+                "image_bytes": data,
                 "label": str(rec["label"]),
                 "file": img_path.name,
             }
         )
     validate_dataset(out)
     return out
+
+
+def _refuse_multi_picture(data: bytes, where: str) -> None:
+    """Some cameras save `.jpg` files as MPO (a JPEG followed by further pictures). The decoder
+    accepts JPEG, PNG and WEBP only, so name the conversion instead of a bare format error."""
+    import io
+
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        fmt = Image.open(io.BytesIO(data)).format
+    except UnidentifiedImageError:
+        return  # validate_dataset reports undecodable bytes with the record and the rule
+    if fmt == "MPO":
+        raise ValueError(
+            f"{where} is an MPO file (a multi-picture JPEG that some cameras write). Re-save it as a plain "
+            "JPEG, for example PIL.Image.open(path).save(new_path, 'JPEG', quality=95), and upload again."
+        )
 
 
 def write_dataset_csv(records: Sequence[Mapping[str, Any]], path: str | Path) -> Path:
@@ -337,11 +421,16 @@ def write_dataset_csv(records: Sequence[Mapping[str, Any]], path: str | Path) ->
     out.parent.mkdir(parents=True, exist_ok=True)
     img_dir = out.parent / "images"
     img_dir.mkdir(parents=True, exist_ok=True)
+    used: set[str] = set()
     with open(out, "w", encoding="utf-8", newline="") as fh:
         writer = csv.writer(fh)
         writer.writerow(REQUIRED_COLUMNS)
-        for r in records:
-            name = r.get("file") or f"{r['id']}.jpg"
+        for i, r in enumerate(records):
+            name = Path(str(r.get("file") or f"{r['id']}.jpg")).name
+            if name.lower() in used:
+                # Cameras reuse names (IMG_0001.jpg) across label folders: keep every image.
+                name = f"{i:04d}_{name}"
+            used.add(name.lower())
             (img_dir / name).write_bytes(r["image_bytes"])
             writer.writerow([r["id"], f"images/{name}", r["label"]])
     return out
