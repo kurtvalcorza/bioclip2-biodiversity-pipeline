@@ -79,7 +79,7 @@ below does not qualify this new capstone. See [capstone build notes](docs/biodiv
 
 ## Release status
 
-**Candidate — one-pass hosted `Run all` pending.** The 2026-09-18 Kaggle Tesla T4 run of commit `22f2854` / notebook blob `60e7655f` completed all 15 code cells only after a manual interpreter restart that followed the in-kernel install, so it is **not a one-pass `Run all` and not promotion evidence** (review finding BIO-M1). The current notebook installs into an isolated environment and needs no restart; it has not yet run on a hosted runtime. See `docs/release-verification.md`. `Release-grade` needs a recorded one-pass hosted run and an explicit maintainer decision.
+**Candidate — hosted BYOD and experiment runs pending.** The 2026-09-18 Kaggle Tesla T4 run of commit `22f2854` / notebook blob `60e7655f` completed all 15 code cells only after a manual interpreter restart that followed the in-kernel install, so it is **not a one-pass `Run all` and not promotion evidence** (review finding BIO-M1). The current notebook installs into an isolated environment and needs no restart; commit `bcce1a8` / blob `5226299a` ran the default path in one pass with no restart and 0 errors on a fresh Colab Tesla T4 session on 2026-10-03 (BYOD and the `TRAINABLE_BLOCKS = 1` experiment not yet exercised on a hosted runtime). See `docs/release-verification.md`. `Release-grade` needs the remaining hosted journeys and an explicit maintainer decision.
 
 ## Licensing
 

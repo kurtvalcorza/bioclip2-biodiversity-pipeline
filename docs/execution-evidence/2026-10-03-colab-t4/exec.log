@@ -1,0 +1,144 @@
+[colab] Parsing notebook '/home/kurt/colab-runs/bioclip2-biodiversity-pipeline-bcce1a8-4b6853/bioclip2_biodiversity_colab_bcce1a8_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/19 - Infrastructure: install the locked runtime into an isolated environment...
+{'isolated_environment': '/content/dimer_isolated_env', 'isolated_python': '3.12.12', 'kernel_python': '3.13.15', 'locked_packages': 50, 'setup_seconds': 50}
+[colab] Executing cell 2/19 - Route the remaining cells to the isolated environment...
+Every later code cell now runs in /content/dimer_isolated_env/bin/python (pid 1138).
+[colab] Executing cell 3/19 - bioclip2_biodiversity-07...
+{'notebook_source': {'repository': 'bioclip2-biodiversity-pipeline', 'repository_revision': '7d45c31fe179ed2279b87823c9776817fdaae09e', 'embedded_module': 'src/bioclip2_biodiversity_pipeline/pipeline.py', 'embedded_modules': ['src/bioclip2_biodiversity_pipeline/pipeline.py', 'src/bioclip2_biodiversity_pipeline/sample_data.py', 'src/bioclip2_biodiversity_pipeline/metrics.py', 'src/bioclip2_biodiversity_pipeline/samples.py', 'src/bioclip2_biodiversity_pipeline/head_selection.py'], 'module_sha256': 'ac661796f89d438cfce1b03ea2dd86caabb245c8ef0f313102cdfacdc85255aa', 'generator': 'build_notebook.py/2.1', 'notebook_spec': '2.2'}, 'python': '3.12.12', 'torch': '2.14.0+cu130', 'open_clip': '3.3.0', 'safetensors': '0.8.0', 'cuda': True}
+[colab] Executing cell 4/19 - bioclip2_biodiversity-09...
+[colab] Executing cell 5/19 - bioclip2_biodiversity-11...
+[colab] Executing cell 6/19 - bioclip2_biodiversity-13...
+[colab] Executing cell 7/19 - bioclip2_biodiversity-15...
+[colab] Executing cell 8/19 - bioclip2_biodiversity-17...
+[colab] Executing cell 9/19 - bioclip2_biodiversity-19...
+{'model_id': 'imageomics/bioclip-2', 'revision': '2957b322090f9cb17ae72c71981c7218a28d81e0', 'license': 'mit', 'files': 3, 'total_bytes': 1710538981}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{'weights_dir': '/content/weights/bioclip-2', 'fetched': ['README.md', 'open_clip_config.json', 'open_clip_model.safetensors']}
+{'verified_files': 3, 'revision': '2957b322090f9cb17ae72c71981c7218a28d81e0'}
+{'device': 'cuda:0', 'source': 'local-snapshot'}
+[colab] Executing cell 10/19 - bioclip2_biodiversity-21...
+{'data_source': 'embedded CC0 iNaturalist sample (48 photographs, four sparrow species)', 'n_records': 48, 'classes': ['chipping_sparrow', 'dark_eyed_junco', 'song_sparrow', 'white_throated_sparrow'], 'class_counts': {'chipping_sparrow': 12, 'dark_eyed_junco': 12, 'song_sparrow': 12, 'white_throated_sparrow': 12}}
+{'class_prompts': {'chipping_sparrow': 'Spizella passerina', 'dark_eyed_junco': 'Junco hyemalis', 'song_sparrow': 'Melospiza melodia', 'white_throated_sparrow': 'Zonotrichia albicollis'}, 'validation': 'decode, format and pixel-size checks only; nothing verifies that an image shows the labelled organism'}
+{'image_width': {'min': 224, 'max': 224}, 'image_height': {'min': 224, 'max': 224}, 'ceilings': {'min_image_side': 32, 'max_image_side': 8192, 'accepted_formats': ['JPEG', 'PNG', 'WEBP'], 'max_records': 5000, 'max_classes': 50, 'min_records': 8, 'min_records_per_class': 3}, 'digest': 'f8fc68cf251e0365...'}
+{'train': 28, 'validation': 8, 'test': 12, 'minimum_per_class_for_these_fractions': 5, 'dataset_csv': 'outputs/bioclip2_biodiversity_sample_dataset.csv'}
+{'provenance': {'source': 'iNaturalist research-grade observations, photo licence CC0 1.0, fetched 2026-09-18', 'image_license': 'CC0-1.0', 'image_side': 224, 'n_images': 48, 'n_observers': 35, 'classes': {'chipping_sparrow': {'scientific_name': 'Spizella passerina', 'common_name': 'Chipping Sparrow'}, 'dark_eyed_junco': {'scientific_name': 'Junco hyemalis', 'common_name': 'Dark-eyed Junco'}, 'song_sparrow': {'scientific_name': 'Melospiza melodia', 'common_name': 'Song Sparrow'}, 'white_throated_sparrow': {'scientific_name': 'Zonotrichia albicollis', 'common_name': 'White-throated Sparrow'}}, 'location_data': 'not collected'}}
+<PIL.Image.Image image mode=RGB size=1152x384 at 0x7FC85A7E6180>
+
+[Image saved to: /tmp/tmp4cbjhhj7.png]
+[colab] Executing cell 11/19 - bioclip2_biodiversity-23...
+{'max_images_per_call': 32, 'image_side_pixels': [32, 8192], 'accepted_formats': ['JPEG', 'PNG', 'WEBP'], 'max_labels': 64, 'image_size': 224}
+{'validation': 'decodability, format, mode convertible to RGB and pixel-size ceilings only. Nothing checks that an image shows an organism, that the organism fills the frame, or that a label names a real taxon -- a photo of a rock is embedded and classified without complaint'}
+{'probe': 'garbage bytes', 'rejected': 'images[0]: image bytes could not be decoded as JPEG, PNG or WEBP'}
+{'probe': 'BMP file', 'rejected': "images[0]: image format BMP is not accepted; use one of ['JPEG', 'PNG', 'WEBP']"}
+{'probe': '16x16 image', 'rejected': 'images[0]: image is 16x16; the shorter side must be at least 32 px'}
+{'verdict': 'accepted', 'n_images': 4, 'requires_remote_code': False, 'first': {'id': 'white_throated_sparrow_07', 'width': 224, 'height': 224, 'sha256': '9638eb794d2f2797bb4944daf81299d2dfd225f2371bc89f81ad958791d81cde'}}
+[colab] Executing cell 12/19 - bioclip2_biodiversity-25...
+{'n_images': 8, 'dimension': 768, 'pooling': 'image-tower projection, L2-normalised (CLIP joint space)', 'norm_of_first': 1.0}
+{'same_batch_twice_identical': True, 'single_vs_batch_max_abs_diff': 1.3783574104309082e-07, 'note': 'batch composition changes float accumulation order; this is float noise, not stochastic inference'}
+{'mean_cosine_within_species': 0.9122, 'mean_cosine_between_species': 0.8234, 'note': 'inspection only; embeddings are unlabelled representations'}
+wrote outputs/bioclip2_biodiversity_embeddings.csv
+[colab] Executing cell 13/19 - bioclip2_biodiversity-27...
+{'baseline': 'zero-shot (text classifier, no training)', 'template': 'a photo of {}.', 'n': 12, 'accuracy': 1.0, 'macro_f1': 1.0, 'auroc': 1.0}
+{'class': 'chipping_sparrow', 'prompt': 'a photo of Spizella passerina.', 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'support': 3, 'predicted': 3}
+{'class': 'dark_eyed_junco', 'prompt': 'a photo of Junco hyemalis.', 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'support': 3, 'predicted': 3}
+{'class': 'song_sparrow', 'prompt': 'a photo of Melospiza melodia.', 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'support': 3, 'predicted': 3}
+{'class': 'white_throated_sparrow', 'prompt': 'a photo of Zonotrichia albicollis.', 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'support': 3, 'predicted': 3}
+{'with_common_names': {'accuracy': 1.0, 'macro_f1': 1.0}, 'note': 'same images, common names in the prompt instead of scientific names'}
+{'id': 'white_throated_sparrow_07', 'true_label': 'white_throated_sparrow', 'predicted': 'white_throated_sparrow', 'scores': {'chipping_sparrow': 0.0001, 'dark_eyed_junco': 0.0, 'song_sparrow': 0.0001, 'white_throated_sparrow': 0.9999}, 'logit_scale': 100.0}
+{'decision_rule': 'argmax over softmax(logit_scale * cosine(image, text)); scores are relative to the supplied label set only and are not calibrated probabilities'}
+{'open_set_probe': {'a rock': 0.0, 'a car': 0.0, 'Zonotrichia albicollis': 1.0, 'a domestic cat': 0.0}}
+{'probe': 'blank grey image', 'label': 'white_throated_sparrow', 'score': 0.5276, 'note': 'closed-set zero-shot always answers; a confident label is not evidence of a bird'}
+{'probe': 'uniform noise image', 'label': 'white_throated_sparrow', 'score': 0.8531, 'note': 'closed-set zero-shot always answers; a confident label is not evidence of a bird'}
+[colab] Executing cell 14/19 - bioclip2_biodiversity-29...
+{'baseline': 'majority-class', 'predicted_label': 'chipping_sparrow', 'accuracy': 0.25, 'macro_f1': 0.1}
+{'baseline': 'colour nearest-centroid (RGB mean+std on a 32x32 thumbnail)', 'accuracy': 0.25, 'macro_f1': 0.1909}
+{'centroids_rgb_mean': {'chipping_sparrow': [0.5144, 0.5076, 0.4332], 'dark_eyed_junco': [0.5153, 0.5049, 0.4216], 'song_sparrow': [0.5292, 0.5252, 0.486], 'white_throated_sparrow': [0.5451, 0.5394, 0.5073]}, 'note': 'six-number colour space; fitted on the training split only'}
+[colab] Executing cell 15/19 - bioclip2_biodiversity-31...
+{'method': 'gradient fine-tuning (AdamW) of a linear head over the L2-normalised image projection (frozen tower; features computed once), learning rate and epoch selected on validation', 'head_initialisation': 'zero-shot text classifier', 'trainable_parameters': 3076, 'total_parameters': 303969284, 'precision': 'float32', 'device': 'cuda:0', 'seconds': 2.05}
+{'learning_rate': 0.0001, 'val_loss_epoch_0': 0.020261, 'best_epoch': 20, 'best_val_loss': 0.019119, 'val_accuracy_at_best': 1.0, 'val_loss_last_epoch': 0.019119}
+{'learning_rate': 0.001, 'val_loss_epoch_0': 0.020261, 'best_epoch': 20, 'best_val_loss': 0.015461, 'val_accuracy_at_best': 1.0, 'val_loss_last_epoch': 0.015461}
+{'learning_rate': 0.01, 'val_loss_epoch_0': 0.020261, 'best_epoch': 6, 'best_val_loss': 0.011564, 'val_accuracy_at_best': 1.0, 'val_loss_last_epoch': 0.015748}
+{'selected': {'learning_rate': 0.01, 'epoch': 6, 'val_loss': 0.011564}, 'head_equals_zero_shot': False}
+{'head_change': {'relative_weight_change': 0.019578448530465864, 'max_abs_weight_change': 0.20357514172792435, 'max_abs_bias': 0.06118624657392502, 'max_abs_logit_change': 1.5766001342003477, 'predictions_changed_vs_zero_shot': 0, 'records_compared': 36}}
+[colab] Executing cell 16/19 - bioclip2_biodiversity-33...
+{'split': 'validation', 'n': 8, 'accuracy': 1.0, 'macro_f1': 1.0, 'auroc': 1.0}
+{'split': 'test', 'n': 12, 'accuracy': 1.0, 'macro_f1': 1.0, 'auroc': 1.0}
+{'class': 'chipping_sparrow', 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'support': 3, 'predicted': 3}
+{'class': 'dark_eyed_junco', 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'support': 3, 'predicted': 3}
+{'class': 'song_sparrow', 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'support': 3, 'predicted': 3}
+{'class': 'white_throated_sparrow', 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'support': 3, 'predicted': 3}
+{'test_predictions_equal_to_zero_shot': 12, 'of': 12}
+{'delta_vs_zero_shot': {'accuracy': 0.0, 'macro_f1': 0.0}, 'delta_vs_majority': {'accuracy': 0.75, 'macro_f1': 0.9}, 'report': 'outputs/bioclip2_biodiversity_evaluation_report.json'}
+[colab] Executing cell 17/19 - bioclip2_biodiversity-35...
+{'new_source': 'six held-out test-split images (never used for training or selection)', 'decision_rule': 'argmax over softmax(logits); scores are softmax outputs, not calibrated probabilities'}
+{'id': 'white_throated_sparrow_07', 'predicted': 'white_throated_sparrow', 'score': 0.9999, 'true_label': 'white_throated_sparrow'}
+{'id': 'white_throated_sparrow_04', 'predicted': 'white_throated_sparrow', 'score': 0.9999, 'true_label': 'white_throated_sparrow'}
+{'id': 'song_sparrow_11', 'predicted': 'song_sparrow', 'score': 0.9997, 'true_label': 'song_sparrow'}
+{'id': 'chipping_sparrow_08', 'predicted': 'chipping_sparrow', 'score': 0.6812, 'true_label': 'chipping_sparrow'}
+{'id': 'chipping_sparrow_02', 'predicted': 'chipping_sparrow', 'score': 0.9998, 'true_label': 'chipping_sparrow'}
+{'id': 'white_throated_sparrow_10', 'predicted': 'white_throated_sparrow', 'score': 0.9995, 'true_label': 'white_throated_sparrow'}
+{'matches': 6, 'of': 6, 'note': 'sanity check on held-out images, not an evaluation'}
+{'format': 'org.valcorza.bioclip2-biodiversity.adapter.v1', 'base_model': {'model_id': 'imageomics/bioclip-2', 'model_revision': '2957b322090f9cb17ae72c71981c7218a28d81e0', 'license': 'mit'}, 'requires_remote_code': False, 'n_tensors': 2, 'tensors': ['head.bias', 'head.weight'], 'files': [{'path': 'adapter.safetensors', 'bytes': 12448, 'sha256': '73873e0b70efcd25da5ffc1e1b5aa1eca67fc3fe19bd2994f9da7c349b25deee'}]}
+{'reload_parity': 'PASS', 'labels_equal': True, 'max_abs_score_diff': 0.0}
+[colab] Executing cell 18/19 - bioclip2_biodiversity-37...
+outputs/:
+  - outputs/bioclip2_biodiversity_adapter/adapter.safetensors (12.2 KB)
+  - outputs/bioclip2_biodiversity_adapter/manifest.json (12.2 KB)
+  - outputs/bioclip2_biodiversity_contact_sheet.png (872.5 KB)
+  - outputs/bioclip2_biodiversity_embeddings.csv (63.9 KB)
+  - outputs/bioclip2_biodiversity_evaluation_report.json (18.3 KB)
+  - outputs/bioclip2_biodiversity_predictions.csv (1.0 KB)
+  - outputs/bioclip2_biodiversity_result.json (39.7 KB)
+  - outputs/bioclip2_biodiversity_sample_dataset.csv (3.3 KB)
+  - outputs/images/chipping_sparrow_00.jpg (12.0 KB)
+  - outputs/images/chipping_sparrow_01.jpg (6.8 KB)
+  - outputs/images/chipping_sparrow_02.jpg (15.5 KB)
+  - outputs/images/chipping_sparrow_03.jpg (17.5 KB)
+  - outputs/images/chipping_sparrow_04.jpg (21.4 KB)
+  - outputs/images/chipping_sparrow_05.jpg (11.2 KB)
+  - outputs/images/chipping_sparrow_06.jpg (12.6 KB)
+  - outputs/images/chipping_sparrow_07.jpg (11.3 KB)
+  - outputs/images/chipping_sparrow_08.jpg (19.4 KB)
+  - outputs/images/chipping_sparrow_09.jpg (10.8 KB)
+  - outputs/images/chipping_sparrow_10.jpg (16.6 KB)
+  - outputs/images/chipping_sparrow_11.jpg (16.2 KB)
+  - outputs/images/dark_eyed_junco_00.jpg (14.3 KB)
+  - outputs/images/dark_eyed_junco_01.jpg (13.7 KB)
+  - outputs/images/dark_eyed_junco_02.jpg (8.2 KB)
+  - outputs/images/dark_eyed_junco_03.jpg (8.2 KB)
+  - outputs/images/dark_eyed_junco_04.jpg (11.2 KB)
+  - outputs/images/dark_eyed_junco_05.jpg (13.7 KB)
+  - outputs/images/dark_eyed_junco_06.jpg (15.7 KB)
+  - outputs/images/dark_eyed_junco_07.jpg (11.4 KB)
+  - outputs/images/dark_eyed_junco_08.jpg (7.8 KB)
+  - outputs/images/dark_eyed_junco_09.jpg (8.8 KB)
+  - outputs/images/dark_eyed_junco_10.jpg (15.3 KB)
+  - outputs/images/dark_eyed_junco_11.jpg (20.2 KB)
+  - outputs/images/song_sparrow_00.jpg (6.7 KB)
+  - outputs/images/song_sparrow_01.jpg (12.0 KB)
+  - outputs/images/song_sparrow_02.jpg (7.9 KB)
+  - outputs/images/song_sparrow_03.jpg (15.1 KB)
+  - outputs/images/song_sparrow_04.jpg (10.8 KB)
+  - outputs/images/song_sparrow_05.jpg (7.3 KB)
+  - outputs/images/song_sparrow_06.jpg (8.2 KB)
+  - outputs/images/song_sparrow_07.jpg (13.0 KB)
+  - outputs/images/song_sparrow_08.jpg (10.3 KB)
+  - outputs/images/song_sparrow_09.jpg (12.9 KB)
+  - outputs/images/song_sparrow_10.jpg (12.9 KB)
+  - outputs/images/song_sparrow_11.jpg (16.4 KB)
+  - outputs/images/white_throated_sparrow_00.jpg (8.7 KB)
+  - outputs/images/white_throated_sparrow_01.jpg (20.3 KB)
+  - outputs/images/white_throated_sparrow_02.jpg (20.7 KB)
+  - outputs/images/white_throated_sparrow_03.jpg (7.7 KB)
+  - outputs/images/white_throated_sparrow_04.jpg (7.0 KB)
+  - outputs/images/white_throated_sparrow_05.jpg (19.5 KB)
+  - outputs/images/white_throated_sparrow_06.jpg (15.9 KB)
+  - outputs/images/white_throated_sparrow_07.jpg (10.1 KB)
+  - outputs/images/white_throated_sparrow_08.jpg (8.3 KB)
+  - outputs/images/white_throated_sparrow_09.jpg (16.9 KB)
+  - outputs/images/white_throated_sparrow_10.jpg (11.4 KB)
+  - outputs/images/white_throated_sparrow_11.jpg (12.7 KB)
+[colab] Executing cell 19/19 - bioclip2_biodiversity-39...
+{'activity_prompts': {'chipping_sparrow': 'species 0', 'dark_eyed_junco': 'species 1', 'song_sparrow': 'species 2', 'white_throated_sparrow': 'species 3'}}
+{'names': 'neutral', 'zero_shot_test_accuracy': 0.3333, 'adapted_test_accuracy': 0.9167, 'selected_rate': 0.01, 'selected_epoch': 20, 'relative_weight_change': 0.0772, 'predictions_changed_vs_zero_shot': 17, 'of': 36}
+[colab] Saving notebook with outputs to '/home/kurt/colab-runs/bioclip2-biodiversity-pipeline-bcce1a8-4b6853/bioclip2_biodiversity_colab_bcce1a8_colab-cli-t4_output.ipynb'...
