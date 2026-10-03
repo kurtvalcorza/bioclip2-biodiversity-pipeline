@@ -8,6 +8,7 @@ test that needs torch skips cleanly without it.
 
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import re
@@ -31,6 +32,12 @@ from bioclip2_biodiversity_pipeline import (
     validate_dataset,
     write_dataset_csv,
 )
+
+# Load torch (when installed) at collection, before any NumPy matrix product: in some Windows conda
+# environments a BLAS initialised first by NumPy (head_change below) makes torch's own DLLs fail to load
+# ("WinError 127 ... shm.dll"), breaking every later torch test in the session. A no-op without torch (CI).
+with contextlib.suppress(Exception):  # absent or unloadable torch: the torch test skips on its own
+    import torch  # noqa: F401
 
 ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK = ROOT / "tutorials" / "bioclip2_biodiversity_colab.ipynb"
