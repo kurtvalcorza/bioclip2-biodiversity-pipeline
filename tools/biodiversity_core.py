@@ -19,6 +19,8 @@ import numpy as np
 from PIL import Image, ImageOps
 
 ROLES = ("train", "validation", "test")
+# Stated in the notebook for both BYOD layouts and enforced in prepare_byod (capstone BIO-m2).
+BYOD_MIN_PER_CLASS = 12
 BYOD_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 FORBIDDEN = {
     "latitude",
@@ -186,6 +188,14 @@ def prepare_byod(
             if row["image"] not in names:
                 raise ValueError("BYOD CSV references missing archive image")
             payloads[row["image"]] = bundle.read(row["image"])
+    # The stated minimum applies per class to both layouts, inference-only included (BIO-m2).
+    per_class = Counter(row["label"] for row in rows)
+    short = {label: n for label, n in sorted(per_class.items()) if n < BYOD_MIN_PER_CLASS}
+    if short:
+        listed = ", ".join(f"{label} has {n}" for label, n in short.items())
+        raise ValueError(
+            f"BYOD needs at least {BYOD_MIN_PER_CLASS} images per class in either layout; {listed}"
+        )
     records, classes, seen_pixels = [], {}, set()
     for index, row in enumerate(rows):
         label, scientific = row["label"], row.get("scientific_name") or class_prompts.get(row["label"])
@@ -517,6 +527,24 @@ def bootstrap(
         "macro_f1_low": float(low[1]),
         "macro_f1_high": float(high[1]),
     }
+
+
+def wilson_interval(successes: int, n: int, z: float = 1.959963984540054) -> dict:
+    """Wilson score 95% interval for a proportion of `n` independent trials.
+
+    Unlike the species-stratified bootstrap, it keeps a non-zero width when every record is
+    right (12/12 gives about 0.76-1.00): it describes small-n sampling uncertainty, treating
+    records as independent, which photographs from a few photographers are not (capstone BIO-M1).
+    """
+    if n <= 0 or not 0 <= successes <= n:
+        raise ValueError("Wilson interval needs 0 <= successes <= n and n > 0")
+    p = successes / n
+    denominator = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denominator
+    half = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denominator
+    low = 0.0 if successes == 0 else max(0.0, centre - half)
+    high = 1.0 if successes == n else min(1.0, centre + half)
+    return {"low": float(low), "high": float(high)}
 
 
 def knn_scores(trainfeatures: np.ndarray, labels: np.ndarray, query: np.ndarray, k: int = 5) -> np.ndarray:

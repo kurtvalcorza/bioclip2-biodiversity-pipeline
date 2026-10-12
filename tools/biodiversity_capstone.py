@@ -964,18 +964,28 @@ def evaluate(root):
     canonical_correct = scores["bioclip_scientific"][ix].argmax(1) == y
     test_observers = len({records[i]["observer"] for i in ix})
     for name, values in scores.items():
+        stratified = core.bootstrap(y, values[ix], n_boot=CONFIG["bootstrap"], stratify=True)
+        wilson = core.wilson_interval(int((values[ix].argmax(1) == y).sum()), len(ix))
         metric_rows.append(
             {
                 "system": name,
                 **scalar_metrics(y, values[ix], name),
                 # Stratified by reference species: every resample keeps the test support per
                 # species, so a species cannot vanish from a resample and score F1 = 0 (BC-M3).
-                **core.bootstrap(y, values[ix], n_boot=CONFIG["bootstrap"], stratify=True),
+                **stratified,
                 "bootstrap_method": "records resampled within each species; support fixed",
                 "test_records": len(ix),
                 "test_observers": test_observers,
                 "paired_correctness_difference_vs_bioclip_scientific": float(
                     np.mean((values[ix].argmax(1) == y).astype(int) - canonical_correct.astype(int))
+                ),
+                # Added after the bootstrap columns, so existing columns keep their values and
+                # order. A zero-width stratified interval is not estimable, not certain (BIO-M1).
+                "accuracy_wilson_low": wilson["low"],
+                "accuracy_wilson_high": wilson["high"],
+                "stratified_interval_estimable": bool(
+                    stratified["accuracy_low"] < stratified["accuracy_high"]
+                    and stratified["macro_f1_low"] < stratified["macro_f1_high"]
                 ),
             }
         )
@@ -1265,6 +1275,8 @@ def report(root):
         "accuracy",
         "macro_f1",
         "top2_accuracy",
+        "accuracy_wilson_low",
+        "accuracy_wilson_high",
         "precision",
         "recall",
         "f1",
@@ -1363,15 +1375,20 @@ def report(root):
             ],
         },
     )
+    canonical_test = [
+        r for r in read_csv(out / "risk_coverage.csv") if r["split"] == "test" and r["canonical"] == "True"
+    ]
+    if len(canonical_test) != 1:
+        raise ValueError("Expected one canonical test row in risk_coverage.csv")
     (out / "conclusion.md").write_text(
-        "On this observer-disjoint sample of [n] Philippine bird photographs from [number] held-out "
-        "photographers, [system] achieved [macro-F1 with its species-stratified interval] compared "
-        "with [baselines]. The selected head [did / did not] equal the zero-shot classifier "
-        "(learning rate and epoch chosen on validation). The review policy accepted [coverage] with "
-        "[selective accuracy], while [failure pattern] remained. This supports [bounded use], "
-        "but does not establish pretraining independence, open-set recognition, nationwide "
-        "accuracy or expert-level identification. Next collect [evidence].\n\n"
-        "Completion notes are optional, not required submissions.\n",
+        conclusion_text(
+            {m["system"]: m for m in metrics_rows},
+            canonical_test[0],
+            core.read_json(out / "head_training.json")["head_equals_zero_shot"],
+            sum(r["split"] in ("train", "validation", "test") for r in records),
+            len(indexes(records, "test")),
+            len({records[i]["observer"] for i in indexes(records, "test")}),
+        ),
         encoding="utf-8",
     )
     # Photos and photo-derived figures stay out of the default archive.
@@ -1391,6 +1408,43 @@ def report(root):
     if archive.stat().st_size > 100_000_000:
         raise ValueError("Results archive exceeds 100 MB")
     core.write_json(out / "archive_verification.json", verify_archive(archive, hashes, classes))
+
+
+def conclusion_text(metrics, canonical_test, head_equals_zero_shot, n_total, n_test, test_observers):
+    """The one conclusion template, prefilled with this run's measured values (BIO-m5).
+
+    Only interpretation is left in brackets. A zero-width species-stratified interval is
+    labelled not estimable, and the Wilson interval is quoted beside it (BIO-M1).
+    """
+
+    def value(number):
+        return "undefined" if number in (None, "") else f"{float(number):.3f}"
+
+    head = metrics["bioclip_head"]
+    f1, f1_low, f1_high = value(head["macro_f1"]), value(head["macro_f1_low"]), value(head["macro_f1_high"])
+    accuracy = value(head["accuracy"])
+    wilson = value(head["accuracy_wilson_low"]) + "-" + value(head["accuracy_wilson_high"])
+    width = "" if float(head["macro_f1_low"]) < float(head["macro_f1_high"]) else (
+        "; zero width, so not estimable from this sample, not certainty"
+    )
+    equals = "did" if str(head_equals_zero_shot) == "True" else "did not"
+    coverage, selective = value(canonical_test["coverage"]), value(canonical_test["selective_accuracy"])
+    return (
+        f"On this observer-disjoint sample of {n_total} Philippine bird photographs, with {n_test} "
+        f"test photographs from {test_observers} held-out photographers, the BioCLIP head achieved "
+        f"macro-F1 {f1} (species-stratified bootstrap {f1_low}-{f1_high}{width}) and accuracy "
+        f"{accuracy} (Wilson 95% interval {wilson}, treating photographs as independent) compared "
+        f"with [baselines]. The selected head {equals} equal the zero-shot classifier (learning "
+        f"rate and epoch chosen on validation). The locked review policy accepted {coverage} of "
+        f"test photographs with selective accuracy {selective}, while [failure pattern] remained. "
+        "Changing only the display threshold showed [trade-off]. This supports [bounded use], but "
+        "does not establish pretraining independence, open-set recognition, nationwide accuracy, "
+        "expert-level identification or that the SigLIP 2 versus BioCLIP 2 gap is caused by "
+        "biological pretraining rather than model size or input handling. Next collect [evidence].\n\n"
+        "Values come from this run's metrics.csv, risk_coverage.csv and head_training.json; "
+        "the bracketed items are yours to interpret. Completion notes are optional, not required "
+        "submissions.\n"
+    )
 
 
 EXCLUDED_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp", ".img", ".npy", ".npz", ".bin", ".pt", ".pth", ".whl")
