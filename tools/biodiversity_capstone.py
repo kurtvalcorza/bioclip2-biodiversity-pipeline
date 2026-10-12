@@ -659,7 +659,8 @@ def representations(root):
     )
     projection = PCA(n_components=2, svd_solver="full").fit(features[train]).transform(features)
     fig, ax = plt.subplots(figsize=(9, 6))
-    for split, marker in (("train", "o"), ("validation", "^"), ("test", "s")):
+    # Test points stay hidden until §8: §6 runs before the head and policy are locked (CX1).
+    for split, marker in (("train", "o"), ("validation", "^")):
         ix = indexes(records, split)
         for c, label in enumerate(classes):
             chosen = [i for i in ix if records[i]["label"] == label]
@@ -674,7 +675,7 @@ def representations(root):
     ax.set(
         xlabel="Principal component 1",
         ylabel="Principal component 2",
-        title="Train-fitted PCA · descriptive visualisation only",
+        title="Train-fitted PCA · train and validation only; test withheld · descriptive only",
     )
     ax.legend(fontsize=7, bbox_to_anchor=(1, 1))
     figure(root, "pca.png", fig)
@@ -980,13 +981,11 @@ def evaluate(root):
                     np.mean((values[ix].argmax(1) == y).astype(int) - canonical_correct.astype(int))
                 ),
                 # Added after the bootstrap columns, so existing columns keep their values and
-                # order. A zero-width stratified interval is not estimable, not certain (BIO-M1).
+                # order. Wilson is a hypothetical independent-photo illustration for accuracy
+                # only (BIO-M1, CX3); the flags say which bootstrap distribution is degenerate (CX4).
                 "accuracy_wilson_low": wilson["low"],
                 "accuracy_wilson_high": wilson["high"],
-                "stratified_interval_estimable": bool(
-                    stratified["accuracy_low"] < stratified["accuracy_high"]
-                    and stratified["macro_f1_low"] < stratified["macro_f1_high"]
-                ),
+                **bootstrap_degenerate(stratified),
             }
         )
         details = core.metrics(y, values[ix])
@@ -1380,14 +1379,23 @@ def report(root):
     ]
     if len(canonical_test) != 1:
         raise ValueError("Expected one canonical test row in risk_coverage.csv")
+    from collections import Counter
+
+    manifest = core.read_json(root / "data_manifest.json")
+    test_observers = Counter(records[i]["observer"] for i in indexes(records, "test"))
+    sample = {
+        "byod": bool(manifest.get("byod")),
+        "n_total": sum(r["split"] in ("train", "validation", "test") for r in records),
+        "n_test": len(indexes(records, "test")),
+        "test_observers": len(test_observers),
+        "largest_observer": max(test_observers.values()),
+    }
     (out / "conclusion.md").write_text(
         conclusion_text(
             {m["system"]: m for m in metrics_rows},
             canonical_test[0],
             core.read_json(out / "head_training.json")["head_equals_zero_shot"],
-            sum(r["split"] in ("train", "validation", "test") for r in records),
-            len(indexes(records, "test")),
-            len({records[i]["observer"] for i in indexes(records, "test")}),
+            sample,
         ),
         encoding="utf-8",
     )
@@ -1410,11 +1418,26 @@ def report(root):
     core.write_json(out / "archive_verification.json", verify_archive(archive, hashes, classes))
 
 
-def conclusion_text(metrics, canonical_test, head_equals_zero_shot, n_total, n_test, test_observers):
+def bootstrap_degenerate(interval):
+    """Per-metric flags: True when every stratified resample gave the same value (CX4).
+
+    A degenerate resampling distribution gives no uncertainty estimate; the point estimate is
+    still measured. Accuracy can stay constant while macro-F1 varies, because resamples move
+    errors between destination classes without changing how many records are correct.
+    """
+    return {
+        "accuracy_bootstrap_degenerate": bool(interval["accuracy_low"] == interval["accuracy_high"]),
+        "macro_f1_bootstrap_degenerate": bool(interval["macro_f1_low"] == interval["macro_f1_high"]),
+    }
+
+
+def conclusion_text(metrics, canonical_test, head_equals_zero_shot, sample):
     """The one conclusion template, prefilled with this run's measured values (BIO-m5).
 
-    Only interpretation is left in brackets. A zero-width species-stratified interval is
-    labelled not estimable, and the Wilson interval is quoted beside it (BIO-M1).
+    Only interpretation is left in brackets. `sample` carries the dataset context, so a grouped
+    BYOD run is never described as Philippine bird photographs (CX9). Observed counts are
+    reported; uncertainty across new photographers is stated as not quantified here, because
+    the bootstrap can be degenerate and Wilson assumes independent photographs (BIO-M1, CX3).
     """
 
     def value(number):
@@ -1422,25 +1445,39 @@ def conclusion_text(metrics, canonical_test, head_equals_zero_shot, n_total, n_t
 
     head = metrics["bioclip_head"]
     f1, f1_low, f1_high = value(head["macro_f1"]), value(head["macro_f1_low"]), value(head["macro_f1_high"])
-    accuracy = value(head["accuracy"])
-    wilson = value(head["accuracy_wilson_low"]) + "-" + value(head["accuracy_wilson_high"])
-    width = "" if float(head["macro_f1_low"]) < float(head["macro_f1_high"]) else (
-        "; zero width, so not estimable from this sample, not certainty"
+    n_test = sample["n_test"]
+    correct = round(float(head["accuracy"]) * n_test)
+    degenerate = "" if float(head["macro_f1_low"]) < float(head["macro_f1_high"]) else (
+        "; degenerate, so this method gives no uncertainty for it"
     )
     equals = "did" if str(head_equals_zero_shot) == "True" else "did not"
     coverage, selective = value(canonical_test["coverage"]), value(canonical_test["selective_accuracy"])
+    if sample.get("byod"):
+        described = "user-supplied photographs"
+        provenance = (
+            "Labels, groups and provenance are as supplied by the user and were not checked against "
+            "any reference; nothing here describes the canonical Philippine sample. "
+        )
+        scope = "accuracy beyond these photographs"
+    else:
+        described = "Philippine bird photographs"
+        provenance = ""
+        scope = "nationwide accuracy"
     return (
-        f"On this observer-disjoint sample of {n_total} Philippine bird photographs, with {n_test} "
-        f"test photographs from {test_observers} held-out photographers, the BioCLIP head achieved "
-        f"macro-F1 {f1} (species-stratified bootstrap {f1_low}-{f1_high}{width}) and accuracy "
-        f"{accuracy} (Wilson 95% interval {wilson}, treating photographs as independent) compared "
-        f"with [baselines]. The selected head {equals} equal the zero-shot classifier (learning "
-        f"rate and epoch chosen on validation). The locked review policy accepted {coverage} of "
-        f"test photographs with selective accuracy {selective}, while [failure pattern] remained. "
-        "Changing only the display threshold showed [trade-off]. This supports [bounded use], but "
-        "does not establish pretraining independence, open-set recognition, nationwide accuracy, "
-        "expert-level identification or that the SigLIP 2 versus BioCLIP 2 gap is caused by "
-        "biological pretraining rather than model size or input handling. Next collect [evidence].\n\n"
+        f"On this observer-disjoint sample of {sample['n_total']} {described}, with {n_test} test "
+        f"photographs from {sample['test_observers']} held-out photographers (the largest share from "
+        f"one photographer: {sample['largest_observer']}), the BioCLIP head labelled {correct} of "
+        f"{n_test} test photographs correctly, macro-F1 {f1} (species-stratified bootstrap "
+        f"{f1_low}-{f1_high}{degenerate}), compared with [baselines]. With this few photographers, "
+        "uncertainty about performance on new photographers is not reliably quantified here. "
+        f"The selected head {equals} equal the zero-shot classifier (learning rate and epoch chosen "
+        f"on validation). The locked review rule accepted {coverage} of test photographs with "
+        f"selective accuracy {selective}, while [failure pattern] remained; this demonstrates the "
+        "rule, it does not show a review-workload benefit. Changing only the display threshold "
+        f"showed [trade-off]. {provenance}This supports [bounded use], but does not establish "
+        f"pretraining independence, open-set recognition, {scope}, expert-level identification "
+        "or that the SigLIP 2 versus BioCLIP 2 gap is caused by biological pretraining rather than "
+        "model size or input handling. Next collect [evidence].\n\n"
         "Values come from this run's metrics.csv, risk_coverage.csv and head_training.json; "
         "the bracketed items are yours to interpret. Completion notes are optional, not required "
         "submissions.\n"

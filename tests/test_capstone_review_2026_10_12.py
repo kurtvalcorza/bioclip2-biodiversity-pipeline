@@ -66,25 +66,53 @@ def test_wilson_interval_keeps_width_where_the_stratified_bootstrap_collapses():
         core.wilson_interval(13, 12)
 
 
-def test_metrics_add_wilson_and_estimability_after_the_existing_columns(tmp_path, monkeypatch):
+def test_metrics_add_wilson_and_per_metric_degeneracy_after_the_existing_columns(tmp_path, monkeypatch):
     out, _, _ = finished_root(tmp_path, monkeypatch)
     header = (out / "metrics.csv").read_text(encoding="utf-8").splitlines()[0].split(",")
-    assert header[-3:] == ["accuracy_wilson_low", "accuracy_wilson_high", "stratified_interval_estimable"]
-    assert header.index("paired_correctness_difference_vs_bioclip_scientific") == len(header) - 4
+    assert header[-4:] == [
+        "accuracy_wilson_low",
+        "accuracy_wilson_high",
+        "accuracy_bootstrap_degenerate",
+        "macro_f1_bootstrap_degenerate",
+    ]
+    assert header.index("paired_correctness_difference_vs_bioclip_scientific") == len(header) - 5
     for row in run.read_csv(out / "metrics.csv"):
         assert float(row["accuracy_wilson_low"]) < float(row["accuracy_wilson_high"])
-        estimable = float(row["accuracy_low"]) < float(row["accuracy_high"]) and float(
-            row["macro_f1_low"]
-        ) < float(row["macro_f1_high"])
-        assert row["stratified_interval_estimable"] == str(estimable)
+        accuracy_flat = float(row["accuracy_low"]) == float(row["accuracy_high"])
+        f1_flat = float(row["macro_f1_low"]) == float(row["macro_f1_high"])
+        assert row["accuracy_bootstrap_degenerate"] == str(accuracy_flat)
+        assert row["macro_f1_bootstrap_degenerate"] == str(f1_flat)
 
 
-def test_markdown_says_zero_width_is_not_estimable_and_shows_wilson(notebook):
-    md = _cells(notebook, "markdown")["md-21"]
-    assert "zero width" in md and "not estimable" in md and "Wilson 95% interval" in md
-    assert "rule of three" in md
+def test_constant_accuracy_with_varying_macro_f1_is_flagged_per_metric():
+    """CX4: the recorded siglip_common pattern (accuracy 0.500-0.500, macro-F1 0.338-0.402)."""
+    import numpy as np
+
+    y = np.repeat(np.arange(4), 3)
+    predicted = np.array([1, 1, 3, 1, 1, 1, 3, 3, 1, 3, 3, 3])  # species 0 and 2 always wrong
+    scores = np.eye(4)[predicted] * 0.9 + 0.025
+    interval = core.bootstrap(y, scores, n_boot=400, stratify=True)
+    assert interval["accuracy_low"] == interval["accuracy_high"] == 0.5
+    assert interval["macro_f1_low"] < interval["macro_f1_high"]
+    assert run.bootstrap_degenerate(interval) == {
+        "accuracy_bootstrap_degenerate": True,
+        "macro_f1_bootstrap_degenerate": False,
+    }
+
+
+def test_markdown_calls_zero_width_degenerate_and_wilson_hypothetical(notebook):
+    md = _cells(notebook, "markdown")
+    assert "zero width" in md["md-21"] and "resampling distribution is degenerate" in md["md-21"]
+    assert "hypothetical illustration for accuracy only" in md["md-21"] and "rule of three" in md["md-21"]
+    assert "not this study's uncertainty" in md["md-21"] and "Wilson 95% interval" not in md["md-21"]
+    assert (
+        "resampling distribution is degenerate" in md["md-01"]
+        and "A hypothetical illustration" in md["md-01"]
+    )
     code = _cells(notebook, "code")["code-22"]
+    assert "'accuracy_bootstrap_degenerate', 'macro_f1_bootstrap_degenerate'" in code
     assert "'accuracy_wilson_low', 'accuracy_wilson_high'" in code
+    assert "stratified_interval_estimable" not in code
 
 
 # capstone BIO-M2 (provisional option A: wording only) ----------------------------------------
@@ -96,6 +124,36 @@ def test_comparison_names_both_architectures_and_bounds_the_claim(notebook):
     assert "does not isolate the effect of biological pretraining" in md["md-12"]
     assert "does not isolate the effect of biological pretraining" in md["md-01"]
     assert "cannot be attributed" in md["md-14"]
+    # CX7: the score function is not offered as a cause of a ranking gap.
+    assert "change score scale and margins, not top-1 accuracy" in md["md-12"]
+    assert "score function" not in md["md-14"]
+
+
+# Codex follow-up CX1, CX2, CX5, CX6 ----------------------------------------------------------
+
+
+def test_section_6_pca_shows_no_test_points_before_selection(notebook):
+    import inspect
+
+    source = inspect.getsource(run.representations)
+    assert '("train", "o"), ("validation", "^"))' in source and '"test"' not in source
+    assert "PCA(n_components=2" in source and ".fit(features[train])" in source
+    assert "test photographs stay hidden until §8" in _cells(notebook, "markdown")["md-15"]
+
+
+def test_referral_sections_demonstrate_rather_than_claim_benefit(notebook):
+    md = _cells(notebook, "markdown")
+    assert "**demonstrate and challenge** a locked referral rule" in md["md-24"]
+    assert "matched review workload" in md["md-24"]
+    assert "challenge the referral rule" in md["md-28"]
+
+
+def test_worked_answers_do_not_overstate_mechanism(notebook):
+    md = _cells(notebook, "markdown")
+    assert "leaned on" not in md["md-11"] and "Background reliance is a hypothesis" in md["md-11"]
+    assert (
+        "not distinct or compact species clusters" in md["md-17"] and "In this sample, yes" not in md["md-17"]
+    )
 
 
 # capstone BIO-m1 -----------------------------------------------------------------------------
@@ -270,26 +328,35 @@ def test_one_conclusion_template_prefilled_with_run_values(tmp_path, monkeypatch
         assert placeholder not in text
     for blank in ("[baselines]", "[failure pattern]", "[trade-off]", "[bounded use]", "[evidence]"):
         assert blank in text
-    assert f"sample of {len([r for r in records if r['split'] != 'probe'])} Philippine" in text
-    assert "Wilson 95% interval" in text and "selected head did equal" in text
+    assert (
+        f"sample of {len([r for r in records if r['split'] != 'probe'])} Philippine bird photographs" in text
+    )
+    assert "not reliably quantified here" in text and "selected head did equal" in text
+    assert "Wilson" not in text and "does not show a review-workload benefit" in text
     assert "On this observer-disjoint sample" not in _markdown(notebook)
 
 
-def test_conclusion_labels_a_zero_width_interval_not_estimable():
-    wilson = core.wilson_interval(12, 12)
-    head = {
-        "macro_f1": "1.0",
-        "macro_f1_low": "1.0",
-        "macro_f1_high": "1.0",
-        "accuracy": "1.0",
-        "accuracy_wilson_low": str(wilson["low"]),
-        "accuracy_wilson_high": str(wilson["high"]),
-    }
-    text = run.conclusion_text(
-        {"bioclip_head": head}, {"coverage": "1.0", "selective_accuracy": "1.0"}, False, 56, 12, 4
-    )
-    assert "1.000-1.000; zero width, so not estimable from this sample, not certainty" in text
-    assert f"Wilson 95% interval {wilson['low']:.3f}-1.000" in text and "did not equal" in text
+def _sample(byod=False):
+    return {"byod": byod, "n_total": 56, "n_test": 12, "test_observers": 4, "largest_observer": 6}
+
+
+def test_conclusion_reports_counts_and_marks_a_degenerate_interval():
+    head = {"macro_f1": "1.0", "macro_f1_low": "1.0", "macro_f1_high": "1.0", "accuracy": "1.0"}
+    policy = {"coverage": "1.0", "selective_accuracy": "1.0"}
+    text = run.conclusion_text({"bioclip_head": head}, policy, False, _sample())
+    assert "labelled 12 of 12 test photographs correctly" in text
+    assert "from 4 held-out photographers (the largest share from one photographer: 6)" in text
+    assert "1.000-1.000; degenerate, so this method gives no uncertainty for it" in text
+    assert "did not equal" in text and "nationwide accuracy" in text
+
+
+def test_byod_conclusion_does_not_claim_philippine_birds():
+    """CX9: grouped BYOD also runs report()."""
+    head = {"macro_f1": "0.8", "macro_f1_low": "0.6", "macro_f1_high": "0.9", "accuracy": "0.75"}
+    policy = {"coverage": "0.5", "selective_accuracy": "1.0"}
+    text = run.conclusion_text({"bioclip_head": head}, policy, True, _sample(byod=True))
+    assert "Philippine bird" not in text and "56 user-supplied photographs" in text
+    assert "as supplied by the user" in text and "degenerate" not in text
 
 
 # capstone BIO-m6 -----------------------------------------------------------------------------
