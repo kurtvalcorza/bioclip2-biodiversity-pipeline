@@ -75,8 +75,8 @@ adds a Philippine field-photo investigation with BioCLIP 2 and SigLIP 2, observe
 baselines, head adaptation, a validation-selected referral policy, and verified artifact export/reload.
 It is a standalone `E2E` / `WORKSHOP` notebook under DIMER Notebook Specification 2.2.
 Its status is **Candidate**. The default path passed fresh Colab CLI T4 runs at blobs `9d0097fb`
-(2026-10-03) and `752bfa8f` (2026-10-12). Those runs predate the capacity-matched SigLIP 2 large
-comparator (owner decision BIO-M2 = B), so this revision needs its own hosted run. The open release gates are one hosted browser BYOD run that includes a refused upload, and the
+(2026-10-03), `752bfa8f` (2026-10-12) and `aa23446f` (2026-10-13; this revision, with the
+capacity-matched SigLIP 2 large comparator of owner decision BIO-M2 = B). The open release gates are one hosted browser BYOD run that includes a refused upload, and the
 maintainer's attribution review. The original tutorial qualification
 below does not qualify this new capstone. See [capstone build notes](docs/biodiversity-capstone.md).
 
