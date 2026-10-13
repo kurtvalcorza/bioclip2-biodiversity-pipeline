@@ -426,6 +426,16 @@ def refusal_probes(root, manifest):
     return rows
 
 
+# General comparators, run in this order in one stage process (base first, so its scores are
+# computed exactly as before). The large checkpoint is the capacity-matched comparator chosen
+# by the owner for capstone BIO-M2 (option B): ViT-L/16 at 256 px has the same width, depth and
+# 256-patch token count as BioCLIP 2's ViT-L/14 at 224 px.
+SIGLIP_CHECKPOINTS = (
+    ("siglip", "google/siglip2-base-patch16-224", "5ffaac51d5e2f3367f7dab0cad4be4cb07c0caa2"),
+    ("siglip_large", "google/siglip2-large-patch16-256", "787800c8990e6f058423089178e718139608408c"),
+)
+
+
 def stage_model(root, key, record_download=True):
     """Download only immutable declared snapshot files, verify before model construction."""
     from huggingface_hub import hf_hub_download
@@ -433,7 +443,7 @@ def stage_model(root, key, record_download=True):
     m = core.read_json(root / "model_manifest.json")[key]
     expected = {
         "bioclip": (BIO_ID, BIO_REV),
-        "siglip": ("google/siglip2-base-patch16-224", "5ffaac51d5e2f3367f7dab0cad4be4cb07c0caa2"),
+        **{name: (model_id, revision) for name, model_id, revision in SIGLIP_CHECKPOINTS},
     }
     if (m["modelId"], m["revision"]) != expected[key]:
         raise ValueError("Model identity does not match the predeclared comparison")
@@ -481,34 +491,40 @@ def siglip_zero_shot(root):
     from transformers import AutoModel, AutoProcessor
 
     manifest, classes, records = context(root)
-    folder = stage_model(root, "siglip")
-    model = (
-        AutoModel.from_pretrained(
-            folder, local_files_only=True, trust_remote_code=False, use_safetensors=True
-        )
-        .float()
-        .cuda()
-        .eval()
-    )
-    processor = AutoProcessor.from_pretrained(folder, local_files_only=True, trust_remote_code=False)
     data, used = {}, {}
-    for condition, field in (("common", "common_name"), ("scientific", "scientific_name")):
-        prompts = siglip_prompts(manifest["classes"], field)
-        used[condition] = prompts
-        scores = []
-        for start in range(0, len(records), 8):
-            inputs = processor(
-                text=prompts,
-                images=images(root, records[start : start + 8]),
-                return_tensors="pt",
-                **SIGLIP_TEXT_KWARGS,
-            ).to("cuda")
-            if tuple(inputs["input_ids"].shape) != (len(prompts), SIGLIP_TEXT_KWARGS["max_length"]):
-                raise ValueError("SigLIP text was not padded to its documented 64-token length")
-            with torch.no_grad():
-                output = model(**inputs)
-                scores.extend(torch.sigmoid(output.logits_per_image).float().cpu().numpy())
-        data[f"siglip_{condition}"] = np.asarray(scores)
+    # The same protocol for every general checkpoint: both prompt vocabularies, the documented
+    # template and padding, sigmoid scores. One model is resident at a time.
+    for key, _model_id, _revision in SIGLIP_CHECKPOINTS:
+        folder = stage_model(root, key)
+        model = (
+            AutoModel.from_pretrained(
+                folder, local_files_only=True, trust_remote_code=False, use_safetensors=True
+            )
+            .float()
+            .cuda()
+            .eval()
+        )
+        processor = AutoProcessor.from_pretrained(folder, local_files_only=True, trust_remote_code=False)
+        for condition, field in (("common", "common_name"), ("scientific", "scientific_name")):
+            prompts = siglip_prompts(manifest["classes"], field)
+            used[condition] = prompts
+            scores = []
+            for start in range(0, len(records), 8):
+                inputs = processor(
+                    text=prompts,
+                    images=images(root, records[start : start + 8]),
+                    return_tensors="pt",
+                    **SIGLIP_TEXT_KWARGS,
+                ).to("cuda")
+                if tuple(inputs["input_ids"].shape) != (len(prompts), SIGLIP_TEXT_KWARGS["max_length"]):
+                    raise ValueError("SigLIP text was not padded to its documented 64-token length")
+                with torch.no_grad():
+                    output = model(**inputs)
+                    scores.extend(torch.sigmoid(output.logits_per_image).float().cpu().numpy())
+            data[f"{key}_{condition}"] = np.asarray(scores)
+        del model, processor
+        gc.collect()
+        torch.cuda.empty_cache()
     np.savez(root / "outputs" / "siglip_scores.npz", **data)
     core.write_json(
         root / "outputs" / "siglip_preprocessing.json",
@@ -519,6 +535,10 @@ def siglip_zero_shot(root):
             "score": "sigmoid(logits_per_image); not normalised across candidates",
             "prompts": used,
             "source": "Transformers SigLIP 2 usage notes (lowercased text, padding to 64 tokens)",
+            "checkpoints": {
+                key: {"model_id": model_id, "revision": revision}
+                for key, model_id, revision in SIGLIP_CHECKPOINTS
+            },
         },
     )
     val = indexes(records, "validation")
@@ -527,9 +547,6 @@ def siglip_zero_shot(root):
         root / "outputs" / "validation_siglip.csv",
         [{"system": k, **scalar_metrics(y, s[val], k)} for k, s in data.items()],
     )
-    del model, processor
-    gc.collect()
-    torch.cuda.empty_cache()
 
 
 def siglip_prompts(classes, field):
@@ -642,6 +659,13 @@ def byod_infer(root):
                     }
                 )
     write_csv(root / "outputs" / "byod_predictions.csv", rows)
+    counts = {}
+    for r in records:
+        counts[r["label"]] = counts.get(r["label"], 0) + 1
+    core.write_json(
+        root / "outputs" / "byod_notice.json",
+        {"performance_claims": "none", "notice": core.BYOD_INFERENCE_NOTICE, "images_per_class": counts},
+    )
 
 
 def representations(root):
@@ -1351,7 +1375,7 @@ def report(root):
                 "bootstrap": bootstrap_record,
                 "downloads": {
                     key: core.read_json(out / f"download_{key}.json")
-                    for key in ("dataset", "siglip", "bioclip")
+                    for key in ("dataset", "siglip", "siglip_large", "bioclip")
                     if (out / f"download_{key}.json").exists()
                 },
                 "report_seconds_before_archive": time.monotonic() - report_started,
@@ -1476,8 +1500,9 @@ def conclusion_text(metrics, canonical_test, head_equals_zero_shot, sample):
         "rule, it does not show a review-workload benefit. Changing only the display threshold "
         f"showed [trade-off]. {provenance}This supports [bounded use], but does not establish "
         f"pretraining independence, open-set recognition, {scope}, expert-level identification "
-        "or that the SigLIP 2 versus BioCLIP 2 gap is caused by biological pretraining rather than "
-        "model size or input handling. Next collect [evidence].\n\n"
+        "or that a gap between BioCLIP 2 and either SigLIP 2 checkpoint (including the "
+        "capacity-matched large one) is caused by biological pretraining alone. "
+        "Next collect [evidence].\n\n"
         "Values come from this run's metrics.csv, risk_coverage.csv and head_training.json; "
         "the bracketed items are yours to interpret. Completion notes are optional, not required "
         "submissions.\n"
@@ -1546,7 +1571,7 @@ def runtime_rows(root, stages):
             if key in boot:
                 rows.append({"step": "bootstrap: " + key.replace("_seconds", "").replace("_", " "),
                              "seconds": boot[key]})
-    for key in ("dataset", "siglip", "bioclip"):
+    for key in ("dataset", "siglip", "siglip_large", "bioclip"):
         path = out / f"download_{key}.json"
         if path.exists():
             record = core.read_json(path)

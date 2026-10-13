@@ -19,8 +19,14 @@ import numpy as np
 from PIL import Image, ImageOps
 
 ROLES = ("train", "validation", "test")
-# Stated in the notebook for both BYOD layouts and enforced in prepare_byod (capstone BIO-m2).
+# Grouped BYOD (adaptation and held-out evaluation) needs 12 images per class (capstone BIO-m2).
+# Inference-only BYOD has no minimum beyond one image per class, and carries this notice instead
+# (owner decision BIO-m2/CX8 = B).
 BYOD_MIN_PER_CLASS = 12
+BYOD_INFERENCE_NOTICE = (
+    "Descriptive inference only: no held-out split, no adaptation and no performance claims. "
+    "These predictions must not be reported as accuracy or used to compare models."
+)
 BYOD_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 FORBIDDEN = {
     "latitude",
@@ -188,14 +194,6 @@ def prepare_byod(
             if row["image"] not in names:
                 raise ValueError("BYOD CSV references missing archive image")
             payloads[row["image"]] = bundle.read(row["image"])
-    # The stated minimum applies per class to both layouts, inference-only included (BIO-m2).
-    per_class = Counter(row["label"] for row in rows)
-    short = {label: n for label, n in sorted(per_class.items()) if n < BYOD_MIN_PER_CLASS}
-    if short:
-        listed = ", ".join(f"{label} has {n}" for label, n in short.items())
-        raise ValueError(
-            f"BYOD needs at least {BYOD_MIN_PER_CLASS} images per class in either layout; {listed}"
-        )
     records, classes, seen_pixels = [], {}, set()
     for index, row in enumerate(rows):
         label, scientific = row["label"], row.get("scientific_name") or class_prompts.get(row["label"])
@@ -251,6 +249,15 @@ def prepare_byod(
         raise ValueError("Sanitised BYOD dataset exceeds 250 MB")
     inference_only = not all(r["observer"] for r in records)
     if not inference_only:
+        # Grouped evaluation keeps the stated per-class minimum (BIO-m2); inference-only does not
+        # (BIO-m2/CX8 = B) and carries BYOD_INFERENCE_NOTICE instead.
+        per_class = Counter(r["label"] for r in records)
+        short = {label: n for label, n in sorted(per_class.items()) if n < BYOD_MIN_PER_CLASS}
+        if short:
+            listed = ", ".join(f"{label} has {n}" for label, n in short.items())
+            raise ValueError(
+                f"Grouped BYOD needs at least {BYOD_MIN_PER_CLASS} images per class; {listed}"
+            )
         assign_byod_roles(records)
     manifest = {
         "byod": True,
@@ -259,6 +266,8 @@ def prepare_byod(
         "records": records,
         "probes": [],
         "authorization_confirmed": True,
+        "performance_claims": "none" if inference_only else "held-out grouped evaluation",
+        **({"notice": BYOD_INFERENCE_NOTICE} if inference_only else {}),
     }
     if not inference_only:
         validate_manifest(manifest, strict=False)

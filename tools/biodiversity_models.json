@@ -23,5 +23,22 @@
       {"path":"tokenizer.model","bytes":4241003,"sha256":"61a7b147390c64585d6c3543dd6fc636906c9af3865a5548f27f31aee1d4c8e2"},
       {"path":"tokenizer_config.json","bytes":47164,"sha256":"14afe629fe4959b9e0d51e1852b8d9f7ad074f90a1a7125a4fcdd17f06e78fc8"}
     ], "totalBytes":1539456760
+  },
+  "siglip_large": {
+    "format":"dimer_hf_snapshot", "formatVersion":1,
+    "modelKey":"siglip2-large-patch16-256", "modelId":"google/siglip2-large-patch16-256",
+    "revision":"787800c8990e6f058423089178e718139608408c",
+    "license":"apache-2.0",
+    "role":"capacity-matched general comparator: ViT-L/16 image tower at 256 px (24 layers, width 1024, 256 patches), matching BioCLIP 2 ViT-L/14 at 224 px",
+    "files":[
+      {"path":"README.md","bytes":3378,"sha256":"005588b9d15ae2fcf79107a0d1a83b675541a855c2b4fef6f03ece89d485905e"},
+      {"path":"config.json","bytes":537,"sha256":"172e39dbf0143b8fe22d2f08921730eb8c397967e58cb37d133161e28aa34104"},
+      {"path":"model.safetensors","bytes":3526204360,"sha256":"fa34f822f016dbb167d8d0e3a8af99b5e199aa28573360d4295252b9ec418e2a"},
+      {"path":"preprocessor_config.json","bytes":394,"sha256":"d14ba2ee3fd816f3de8abaddc31953565128eaf37c73ad4bed32101a98465aff"},
+      {"path":"special_tokens_map.json","bytes":636,"sha256":"baec30ea10906f16adb8c18af7a34023002c1746542612b8b41c9f09e1351351"},
+      {"path":"tokenizer.json","bytes":34363039,"sha256":"cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322"},
+      {"path":"tokenizer.model","bytes":4241003,"sha256":"61a7b147390c64585d6c3543dd6fc636906c9af3865a5548f27f31aee1d4c8e2"},
+      {"path":"tokenizer_config.json","bytes":47164,"sha256":"14afe629fe4959b9e0d51e1852b8d9f7ad074f90a1a7125a4fcdd17f06e78fc8"}
+    ], "totalBytes":3564860511
   }
 }

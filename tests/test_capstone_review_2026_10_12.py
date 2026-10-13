@@ -21,7 +21,7 @@ import biodiversity_capstone as run  # noqa: E402
 import biodiversity_core as core  # noqa: E402
 import build_biodiversity_capstone as builder  # noqa: E402
 
-from test_capstone_review_fixes import finished_root  # noqa: E402
+from test_capstone_review_fixes import _manifest, _Tensor, finished_root  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -244,7 +244,7 @@ def _byod_cell(notebook, tmp_path, *, zip_path, prompts, authorized=True):
 @pytest.mark.parametrize(
     ("per_class", "prompts", "authorized", "message"),
     [
-        (3, '{"c0": "Species a", "c1": "Species b"}', True, "BYOD needs at least 12 images per class"),
+        (0, '{"c0": "Species a", "c1": "Species b"}', True, "BYOD has no images"),
         (12, '{"c0": "Species a"}', True, "Supply a bounded scientific name for every class"),
         (12, "{not json", True, "the class prompts are not valid JSON"),
         (12, '{"c0": "Species a", "c1": "Species b"}', False, "confirm that you are authorised"),
@@ -273,16 +273,166 @@ def test_valid_byod_reaches_inference_with_clean_refusal_enabled(notebook, tmp_p
 # capstone BIO-m2 -----------------------------------------------------------------------------
 
 
-def test_inference_only_byod_enforces_the_stated_minimum(tmp_path, notebook):
+def _labels_zip(path, per_class, classes=("c0", "c1"), groups=7):
+    """Grouped layout: labels.csv with observer groups."""
+    lines = ["id,image,label,scientific_name,observer_group"]
+    with zipfile.ZipFile(path, "w") as archive:
+        for c, label in enumerate(classes):
+            for j in range(per_class):
+                name = f"img_{label}_{j}.png"
+                archive.writestr(name, _png(c * 100 + j))
+                lines.append(f"{label}_{j},{name},{label},Species {label},g{j % groups}")
+        archive.writestr("labels.csv", "\n".join(lines) + "\n")
+    return path
+
+
+def test_small_inference_only_byod_is_accepted_with_a_no_claims_notice(tmp_path, notebook):
+    """Owner decision BIO-m2/CX8 = B: no per-class minimum for descriptive inference."""
     prompts = {"c0": "Species a", "c1": "Species b"}
+    result = core.prepare_byod(tmp_path / "small", str(_folder_zip(tmp_path / "s.zip", 1)), prompts, True)
+    assert result["inference_only"] and len(result["records"]) == 2
+    assert result["performance_claims"] == "none" and result["notice"] == core.BYOD_INFERENCE_NOTICE
+    assert "no performance claims" in core.BYOD_INFERENCE_NOTICE.lower()
+    md = _cells(notebook, "markdown")["md-33"]
+    assert "accepts any number of images per class" in md and "**no performance claims**" in md
+    assert "Grouped evaluation needs at least twelve images per class" in md
+
+
+def test_grouped_byod_keeps_the_twelve_per_class_minimum(tmp_path):
     with pytest.raises(
-        ValueError, match="at least 12 images per class in either layout; c0 has 11, c1 has 11"
+        ValueError, match="Grouped BYOD needs at least 12 images per class; c0 has 11, c1 has 11"
     ):
-        core.prepare_byod(tmp_path / "small", str(_folder_zip(tmp_path / "s.zip", 11)), prompts, True)
-    result = core.prepare_byod(tmp_path / "ok", str(_folder_zip(tmp_path / "ok.zip", 12)), prompts, True)
-    assert result["inference_only"] and len(result["records"]) == 24
-    assert "at least twelve images per class in either layout" in _cells(notebook, "markdown")["md-33"]
+        core.prepare_byod(tmp_path / "g", str(_labels_zip(tmp_path / "g.zip", 11)), authorization=True)
     assert core.BYOD_MIN_PER_CLASS == 12
+
+
+def test_byod_inference_writes_and_shows_the_notice(tmp_path, monkeypatch, notebook):
+    prompts = {"c0": "Species a", "c1": "Species b"}
+    core.prepare_byod(tmp_path, str(_folder_zip(tmp_path / "s.zip", 2)), prompts, True)
+    (tmp_path / "outputs").mkdir()
+
+    class Pipe:
+        def zero_shot(self, imgs, labels, names):
+            return {"predictions": [{"id": n, "label": "c0", "scores": [0.6, 0.4]} for n in names]}
+
+    monkeypatch.setattr(run, "bioclip_pipe", lambda root: Pipe())
+    monkeypatch.setattr(run, "images", lambda root, recs: [object() for _ in recs])
+    run.byod_infer(tmp_path)
+    notice = core.read_json(tmp_path / "outputs" / "byod_notice.json")
+    assert notice == {
+        "performance_claims": "none",
+        "notice": core.BYOD_INFERENCE_NOTICE,
+        "images_per_class": {"c0": 2, "c1": 2},
+    }
+    assert "print('No performance claims:', notice['notice'])" in _cells(notebook, "code")["code-34"]
+
+
+# Owner decision BIO-M2 = B: capacity-matched SigLIP 2 large --------------------------------------
+
+
+def test_capacity_matched_comparator_is_pinned_and_licensed():
+    models = json.loads((ROOT / "tools" / "biodiversity_models.json").read_text(encoding="utf-8"))
+    large = models["siglip_large"]
+    assert (large["modelId"], large["revision"]) == (
+        "google/siglip2-large-patch16-256",
+        "787800c8990e6f058423089178e718139608408c",
+    )
+    assert large["license"] == "apache-2.0"
+    assert sum(f["bytes"] for f in large["files"]) == large["totalBytes"]
+    assert all(len(f["sha256"]) == 64 for f in large["files"])
+    keys = [key for key, _, _ in run.SIGLIP_CHECKPOINTS]
+    assert keys == ["siglip", "siglip_large"]  # base first: its scores are computed as before
+    for key, model_id, revision in run.SIGLIP_CHECKPOINTS:
+        assert (models[key]["modelId"], models[key]["revision"]) == (model_id, revision)
+
+
+def test_siglip_stage_runs_both_checkpoints_under_one_protocol(tmp_path, monkeypatch):
+    import types
+
+    import numpy as np
+
+    core.write_json(tmp_path / "data_manifest.json", _manifest(0))
+    (tmp_path / "outputs").mkdir()
+    staged, loaded, lengths = [], [], []
+
+    class Inputs(dict):
+        def to(self, device):
+            return self
+
+    class Processor:
+        @staticmethod
+        def from_pretrained(folder, **kwargs):
+            return Processor()
+
+        def __call__(self, text, images, return_tensors, **kwargs):
+            lengths.append(kwargs.get("max_length"))
+            return Inputs(input_ids=np.zeros((len(text), kwargs["max_length"])), n=len(images))
+
+    class Model:
+        @staticmethod
+        def from_pretrained(folder, **kwargs):
+            loaded.append(Path(folder).name)
+            return Model()
+
+        def float(self):
+            return self
+
+        def cuda(self):
+            return self
+
+        def eval(self):
+            return self
+
+        def __call__(self, input_ids, n):
+            return types.SimpleNamespace(logits_per_image=np.zeros((n, input_ids.shape[0])))
+
+    class NoGrad:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, *exc):
+            return False
+
+    def stage(root, key, record_download=True):
+        staged.append(key)
+        folder = tmp_path / "weights" / key
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    fake_torch = types.SimpleNamespace(
+        no_grad=NoGrad,
+        sigmoid=lambda x: _Tensor(1 / (1 + np.exp(-x))),
+        cuda=types.SimpleNamespace(empty_cache=lambda: None),
+    )
+    monkeypatch.setattr(run, "torch_runtime", lambda: fake_torch)
+    monkeypatch.setattr(run, "stage_model", stage)
+    monkeypatch.setattr(run, "images", lambda root, recs: [object() for _ in recs])
+    monkeypatch.setitem(
+        sys.modules, "transformers", types.SimpleNamespace(AutoModel=Model, AutoProcessor=Processor)
+    )
+    run.siglip_zero_shot(tmp_path)
+    assert staged == loaded == ["siglip", "siglip_large"]
+    with np.load(tmp_path / "outputs" / "siglip_scores.npz") as saved:
+        assert list(saved.files) == [
+            "siglip_common",
+            "siglip_scientific",
+            "siglip_large_common",
+            "siglip_large_scientific",
+        ]
+    assert set(lengths) == {64}
+    record = core.read_json(tmp_path / "outputs" / "siglip_preprocessing.json")
+    assert record["checkpoints"]["siglip_large"]["model_id"] == "google/siglip2-large-patch16-256"
+    rows = run.read_csv(tmp_path / "outputs" / "validation_siglip.csv")
+    assert [r["system"] for r in rows][2:] == ["siglip_large_common", "siglip_large_scientific"]
+
+
+def test_interpretation_says_what_the_matched_comparator_shows(notebook):
+    md = _cells(notebook, "markdown")
+    assert "**capacity-matched comparator**" in md["md-12"] and "siglip2-large-patch16-256" in md["md-12"]
+    assert "removes most of the image-tower size difference and nothing else" in md["md-12"]
+    assert "does not isolate the effect of biological pretraining" in md["md-12"]
+    assert "ten predeclared systems" in md["md-21"] and "`siglip_large_scientific`" in md["md-21"]
+    assert "16 * 1024**3" in _cells(notebook, "code")["code-03"]
 
 
 # capstone BIO-m3 -----------------------------------------------------------------------------
