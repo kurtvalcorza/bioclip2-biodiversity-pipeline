@@ -19,6 +19,14 @@ import numpy as np
 from PIL import Image, ImageOps
 
 ROLES = ("train", "validation", "test")
+# Grouped BYOD (adaptation and held-out evaluation) needs 12 images per class (capstone BIO-m2).
+# Inference-only BYOD has no minimum beyond one image per class, and carries this notice instead
+# (owner decision BIO-m2/CX8 = B).
+BYOD_MIN_PER_CLASS = 12
+BYOD_INFERENCE_NOTICE = (
+    "Descriptive inference only: no held-out split, no adaptation and no performance claims. "
+    "These predictions must not be reported as accuracy or used to compare models."
+)
 BYOD_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 FORBIDDEN = {
     "latitude",
@@ -241,6 +249,15 @@ def prepare_byod(
         raise ValueError("Sanitised BYOD dataset exceeds 250 MB")
     inference_only = not all(r["observer"] for r in records)
     if not inference_only:
+        # Grouped evaluation keeps the stated per-class minimum (BIO-m2); inference-only does not
+        # (BIO-m2/CX8 = B) and carries BYOD_INFERENCE_NOTICE instead.
+        per_class = Counter(r["label"] for r in records)
+        short = {label: n for label, n in sorted(per_class.items()) if n < BYOD_MIN_PER_CLASS}
+        if short:
+            listed = ", ".join(f"{label} has {n}" for label, n in short.items())
+            raise ValueError(
+                f"Grouped BYOD needs at least {BYOD_MIN_PER_CLASS} images per class; {listed}"
+            )
         assign_byod_roles(records)
     manifest = {
         "byod": True,
@@ -249,6 +266,8 @@ def prepare_byod(
         "records": records,
         "probes": [],
         "authorization_confirmed": True,
+        "performance_claims": "none" if inference_only else "held-out grouped evaluation",
+        **({"notice": BYOD_INFERENCE_NOTICE} if inference_only else {}),
     }
     if not inference_only:
         validate_manifest(manifest, strict=False)
@@ -517,6 +536,24 @@ def bootstrap(
         "macro_f1_low": float(low[1]),
         "macro_f1_high": float(high[1]),
     }
+
+
+def wilson_interval(successes: int, n: int, z: float = 1.959963984540054) -> dict:
+    """Wilson score 95% interval for a proportion of `n` independent trials.
+
+    Unlike the species-stratified bootstrap, it keeps a non-zero width when every record is
+    right (12/12 gives about 0.76-1.00): it describes small-n sampling uncertainty, treating
+    records as independent, which photographs from a few photographers are not (capstone BIO-M1).
+    """
+    if n <= 0 or not 0 <= successes <= n:
+        raise ValueError("Wilson interval needs 0 <= successes <= n and n > 0")
+    p = successes / n
+    denominator = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denominator
+    half = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denominator
+    low = 0.0 if successes == 0 else max(0.0, centre - half)
+    high = 1.0 if successes == n else min(1.0, centre + half)
+    return {"low": float(low), "high": float(high)}
 
 
 def knn_scores(trainfeatures: np.ndarray, labels: np.ndarray, query: np.ndarray, k: int = 5) -> np.ndarray:

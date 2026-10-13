@@ -130,8 +130,8 @@ if gpu.returncode or 'T4' not in gpu.stdout:
 print('Device:', gpu.stdout.strip())
 ROOT = Path.cwd() / 'outputs' / 'philippine_biodiversity' / uuid.uuid4().hex[:12]
 ROOT.mkdir(parents=True)
-if shutil.disk_usage(ROOT).free < 12 * 1024**3:
-    raise RuntimeError('At least 12 GiB free disk is required for dependencies, two model snapshots and outputs.')
+if shutil.disk_usage(ROOT).free < 16 * 1024**3:
+    raise RuntimeError('At least 16 GiB free disk is required for dependencies, three model snapshots and outputs.')
 print('Run directory:', ROOT)
 """
 
@@ -185,21 +185,34 @@ print(f'Environment ready in {BOOTSTRAP_SECONDS:.0f} s (uv {uv_seconds:.0f} s, v
     'seconds': BOOTSTRAP_SECONDS, 'uv_download_seconds': uv_seconds, 'environment_seconds': environment_seconds,
     'install_seconds': install_seconds, 'session_started_at': SESSION_STARTED_AT, 'gpu': gpu.stdout.strip()}), encoding='utf-8')
 
-def run_stage(stage, *options):
+def run_stage(stage, *options, refusal=None):
+    # Child output is streamed once. A child traceback is held back and goes to the log; a refusal
+    # (a ValueError, when `refusal` names the journey) prints one line and returns False, and any
+    # other failure prints the held-back traceback once and stops the run.
     log = ROOT / (stage + '.log')
     print('Running', stage, 'in a separate process. Log:', log, flush=True)
+    held_back = []
     with log.open('w', encoding='utf-8') as output:
         result = subprocess.Popen([str(PYTHON), '-u', str(ROOT / 'capstone.py'), '--root', str(ROOT), '--stage', stage, *options],
                                   env=ENV, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         for line in result.stdout:
             output.write(line)
             output.flush()
-            if line.strip() and len(line) < 2000:
+            if held_back or line.startswith('Traceback (most recent call last):'):
+                held_back.append(line)
+            elif line.strip() and len(line) < 2000:
                 print(line.rstrip(), flush=True)
         result.wait()
-    if result.returncode:
-        print(log.read_text(encoding='utf-8')[-7000:])
-        raise RuntimeError(f'{stage} failed with exit {result.returncode}. Preserve the diagnostics.')
+    if result.returncode == 0:
+        return True
+    lines = [line.strip() for line in held_back if line.strip()]
+    reason = lines[-1] if lines else f'exit {result.returncode}'
+    if refusal and reason.startswith('ValueError: '):
+        print(f"{refusal} refused: {reason[len('ValueError: '):]}")
+        print('Nothing else was run. The full diagnostics are in', log)
+        return False
+    print(''.join(held_back)[-7000:])
+    raise RuntimeError(f'{stage} failed: {reason}. Preserve the diagnostics in {log}.')
 """
 
 HELPERS = r"""
@@ -342,7 +355,11 @@ This optional, modular capstone is for research and education. Basic Python and 
 
 **AI Assistance Disclosure:** Generative AI assisted this notebook's code and technical writing under maintainer direction. The maintainer remains responsible for reviewing implementation, validating results and release decisions. AI assistance is not independent verification, provider endorsement or release approval.
 
-Photographs retain their individual CC0 or CC BY terms and creator attribution. BioCLIP 2 weights use MIT terms; SigLIP 2 uses Apache-2.0. This is a frozen educational sample, not an official iNaturalist benchmark. Candidate status remains until the sample review and a fresh hosted end-to-end run have been qualified.
+Photographs retain their individual CC0 or CC BY terms and creator attribution. BioCLIP 2 weights use MIT terms; both SigLIP 2 checkpoints use Apache-2.0. This is a frozen educational sample, not an official iNaturalist benchmark. **Status: Candidate.** The default path passed fresh Colab CLI T4 runs of earlier revisions (latest: blob 752bfa8f; see `docs/release-verification.md`). Those runs cover the earlier design without the capacity-matched SigLIP 2 large comparator, so this revision needs its own hosted run. The open release gates are one hosted browser run of the optional BYOD cell that includes a refused upload, and the maintainer's attribution review.
+
+**How to use this notebook.** Select a T4 runtime and **Run all**; the default path needs no input. Each section follows *input → system → output* and asks you to predict before a result appears; seven interpretation cells then offer a collapsed worked answer to open after you have made your own prediction. Terms are defined in the glossary in §1. Collapsed cells are infrastructure; you do not need to read them.
+
+**Roadmap.** §1 orient and glossary → §2 runtime → §3 data audit → §4 simple baselines → §5 SigLIP 2 and BioCLIP 2 zero-shot → §6 representation (5-NN, PCA) → §7 fit the head and lock the referral policy → §8 reveal the test results → §9 change the review threshold → §10 closed-list probes → §11 verify the head and results bundle (optional BYOD follows) → §12 conclude with evidence.
 """.replace("NOTEBOOK_REVISION", NOTEBOOK_REVISION))
     md(
         """## 1. Orient: what will this system decide?
@@ -365,7 +382,7 @@ Before running, predict which pair will be hardest to separate. Name a factor su
 
 1. explain why an observer-disjoint split is a stronger test than a random photo split for field imagery;
 2. distinguish zero-shot classification, nearest-neighbour classification and a fitted linear head;
-3. compare a biology-specific representation with a general vision-language model;
+3. compare a biology-specific checkpoint (BioCLIP 2) with two general vision-language checkpoints (SigLIP 2 base and a capacity-matched SigLIP 2 large), and explain why even the matched gap does not isolate the effect of biological pretraining;
 4. read accuracy, macro-F1, per-species recall, top-2 accuracy and a confusion matrix;
 5. explain why a closed-set classifier always picks one supplied label, even for an unsuitable image;
 6. use validation data to set a bounded referral policy without tuning on the test set;
@@ -374,15 +391,34 @@ Before running, predict which pair will be hardest to separate. Name a factor su
 9. write a conclusion that separates demonstrated evidence from unresolved pretraining overlap and deployment claims.
 
 Completion notes and written answers are optional personal learning aids, **not required submissions**.
+
+### Glossary
+
+| Term | Meaning here |
+| --- | --- |
+| Observer-disjoint split | Every photographer's pictures sit in exactly one of train, validation or test. |
+| Embedding | A vector the model computes for an image or a label text; similar content gives nearby vectors. |
+| Zero-shot | Classifying by comparing image and label-text embeddings, with no fitting to our photographs. |
+| 5-NN | Five-nearest-neighbour voting among training-image embeddings. |
+| Linear head | A small fitted mapping from frozen image embeddings to the four candidate scores. |
+| Logit scale | BioCLIP's fixed multiplier on similarities before the softmax; it sets how peaked scores are. |
+| Macro-F1 | The F1 score of each species averaged with equal weight, so a weak species is not hidden. |
+| Top-2 accuracy | How often the true species is among the two highest scores. |
+| Margin | The highest minus the second-highest head score for one photograph. |
+| Referral threshold | The margin below which a photograph is referred to an expert instead of accepted. |
+| Coverage | The fraction of photographs accepted rather than referred. |
+| Selective accuracy | Accuracy among accepted photographs only. |
+| Stratified bootstrap interval | A resampling interval that keeps each species' test count fixed. Zero width means the resampling distribution is degenerate (every resample gave the same value), so the method gives no uncertainty; the point estimate is still measured. Accuracy and macro-F1 can degenerate separately. |
+| Wilson interval | A hypothetical illustration for accuracy only: the 95% interval a proportion would have if every photograph were an independent trial. Photographs from a few photographers are not, so it is not this study's uncertainty. |
 """.replace("SPECIES_LIST", species_text)
     )
     md("""## 2. Set up the reproducible runtime
 
 Select **Runtime → Change runtime type → T4 GPU**, start a fresh runtime and select **Run all**. The default path needs no login, token, upload, repository clone, DIMER service or manual restart. Infrastructure cells can be collapsed.
 
-The notebook creates an isolated Python 3.12 environment from a fully hashed lock and carries its implementation. Public assets are pinned by revision, byte count and SHA-256. It needs **at least 12 GiB free disk** for CUDA dependencies, both model snapshots and outputs; final measured download time, runtime and peak RAM/VRAM are reported by the run, not promised in advance. SigLIP and BioCLIP run in separate processes and are never resident simultaneously. Defaults use float32 and bounded batches.
+The notebook creates an isolated Python 3.12 environment from a fully hashed lock and carries its implementation. Public assets are pinned by revision, byte count and SHA-256. It needs **at least 16 GiB free disk** for CUDA dependencies, the three model snapshots (about 6.8 GB) and outputs; final measured download time, runtime and peak RAM/VRAM are reported by the run, not promised in advance. SigLIP and BioCLIP run in separate processes and are never resident simultaneously; the two SigLIP checkpoints run one after the other in the same process, the first released before the second loads. Defaults use float32 and bounded batches.
 
-Network hosts used: PyPI (the pinned `uv` wheel and the hashed dependency lock), the CPython build that `uv` downloads for its managed Python 3.12.12, the Hugging Face Hub (both model snapshots at fixed revisions) and the iNaturalist open-data bucket (`inaturalist-open-data.s3.amazonaws.com`, manifest-listed photographs only). No token or login is used.
+Network hosts used: PyPI (the pinned `uv` wheel and the hashed dependency lock), the CPython build that `uv` downloads for its managed Python 3.12.12, the Hugging Face Hub (all three model snapshots at fixed revisions) and the iNaturalist open-data bucket (`inaturalist-open-data.s3.amazonaws.com`, manifest-listed photographs only). No token or login is used.
 
 **Input:** a fresh T4 runtime. **System:** verified carrier plus locked dependencies. **Output:** a unique run directory and an isolated executable. Integrity failures stop execution; do not disable checks to continue.
 """)
@@ -422,7 +458,7 @@ Contact sheets show training examples with attribution; withheld test prediction
     code(
         "run_stage('prepare')\nshow_table('dataset_summary.csv')\nshow_table('observer_roles.csv')\nshow_table('dataset_audit.csv', limit=40)\nshow_record('download_dataset.json')\nshow_figures('contact_train.png')\nshow_table('attribution.csv', limit=8)\nshow_table('refusal_probe_results.csv')"
     )
-    md("""**What to notice:** inspect crop geometry as well as the original framing. The dashed box on each contact-sheet photograph marks the square BioCLIP actually sees after its centre crop; SigLIP instead resizes the whole frame to 224 × 224, which can squash wide photographs. The organism may occupy very different fractions of each photograph, and the audit table lists the sample builder's recorded crop limitations. Read observer counts alongside image counts. Look for one case where background or crop could help or hurt identification.
+    md("""**What to notice:** inspect crop geometry as well as the original framing. The dashed box on each contact-sheet photograph marks the square BioCLIP actually sees after its centre crop; SigLIP instead resizes the whole frame to a square (224 × 224 for SigLIP 2 base, 256 × 256 for SigLIP 2 large), which can squash wide photographs. The organism may occupy very different fractions of each photograph, and the audit table lists the sample builder's recorded crop limitations. Read observer counts alongside image counts. Look for one case where background or crop could help or hurt identification.
 
 <details><summary>Why keep observers separate?</summary>Pictures by one observer can share camera characteristics, editing style and places. Placing that observer on both sides of the split could reward these shortcuts. Global grouping reduces this within-sample leakage; it does not prove pretraining independence.</details>
 
@@ -438,35 +474,43 @@ Predict: will the colour baseline separate the species, or mostly exploit backgr
 """)
     code("show_table('validation_baselines.csv')\nshow_figures('baseline_validation.png')")
     md(
-        """**Interpret:** use the validation confusion counts to identify a weak class. A simple baseline succeeding is useful evidence; the biological model is not required to win. Keep all methods and all selected records in the final comparison."""
+        """**Interpret:** use the validation confusion counts to identify a weak class. A simple baseline succeeding is useful evidence; the biological model is not required to win. Keep all methods and all selected records in the final comparison.
+
+<details><summary>Worked answer: did the colour baseline separate the species?</summary>Partly. Validation accuracy was 0.417 and macro-F1 0.411, above the majority baseline (0.250 and 0.100) but far from separating four species. The per-species counts show which species it handles worst; they do not show what it relied on. Background reliance is a hypothesis to check by inspecting the images or by controlled crop or foreground/background comparisons. Canonical-run values, labelled per REL13: revision 0.2.2-candidate, blob 9d0097fb, Colab CLI T4 run recorded on 2026-10-03 in `docs/release-verification.md`. They were not re-run for this view; your run prints its own values above.</details>"""
     )
     md("""## 5. Compare general and biological zero-shot systems
 
-**Input:** the same images and either common or scientific names. **System:** pinned SigLIP 2 followed by pinned BioCLIP 2. **Output:** candidate rankings and validation metrics under four predeclared conditions.
+**Input:** the same images and either common or scientific names. **System:** pinned SigLIP 2 base and SigLIP 2 large, then pinned BioCLIP 2. **Output:** candidate rankings and validation metrics under six predeclared conditions (three checkpoints × two vocabularies).
 
-SigLIP 2 is the general-purpose comparator. BioCLIP 2 is trained for biological representations. **BioCLIP scientific-name zero-shot is the canonical zero-shot reference** regardless of which prompt appears better. Their score magnitudes are not directly comparable or calibrated probabilities of taxonomic truth.
+The two SigLIP 2 checkpoints are the general-purpose comparators; the large one is matched to BioCLIP 2 in image-tower size. BioCLIP 2 is trained for biological representations. **BioCLIP scientific-name zero-shot is the canonical zero-shot reference** regardless of which prompt appears better. Their score magnitudes are not directly comparable or calibrated probabilities of taxonomic truth.
 
-Each model runs under its own documented convention, so neither is handicapped by our formatting. SigLIP 2 was trained on lowercased text padded to 64 tokens, so its prompts are "This is a photo of {name}." with the name lowercased and the text padded to 64 tokens; its scores are independent sigmoids. BioCLIP 2 uses "a photo of {name}." with its own tokenizer, and its scores are a softmax over the four candidates. The exact SigLIP prompts are exported in `siglip_preprocessing.json`.
+**What this comparison can and cannot show.** BioCLIP 2 uses a large ViT-L/14 image tower at 224 px. SigLIP 2 base (`siglip2-base-patch16-224`) is a smaller ViT-B/16 image tower at 224 px, so a gap between it and BioCLIP 2 mixes training data with model size. SigLIP 2 large (`siglip2-large-patch16-256`) is the **capacity-matched comparator**: a ViT-L/16 image tower at 256 px with the same width and depth as BioCLIP 2's (24 layers, width 1024) and the same 16 × 16 = 256 image patches. It removes most of the image-tower size difference and nothing else. All the SigLIP checkpoints still differ from BioCLIP 2 in training data and objective, text tower and tokenizer, patch size and input resolution, and crop policy (SigLIP resizes the whole frame, BioCLIP centre-crops); these can all change which candidate ranks first. So if BioCLIP 2 still leads SigLIP 2 large, image-tower size alone does not explain the gap; if SigLIP 2 large closes it, size or general training explains more of the gap than biological training does. Either way the comparison does not isolate the effect of biological pretraining, and with 12 validation and 12 test photographs a difference of one or two photographs is within sampling noise. The score functions differ too (independent sigmoids versus a softmax over the four candidates), but for one image both keep the same ordering of candidates, so they change score scale and margins, not top-1 accuracy or macro-F1.
+
+Each model runs under its own documented convention, so none is handicapped by our formatting. Both SigLIP 2 checkpoints get exactly the same protocol. SigLIP 2 was trained on lowercased text padded to 64 tokens, so its prompts are "This is a photo of {name}." with the name lowercased and the text padded to 64 tokens; its scores are independent sigmoids. BioCLIP 2 uses "a photo of {name}." with its own tokenizer, and its scores are a softmax over the four candidates. The exact SigLIP prompts are exported in `siglip_preprocessing.json`.
 
 Predict whether scientific names will help both models equally. Change only the prompt vocabulary: keep images, split, checkpoints and preprocessing fixed. Models run sequentially, with process exit releasing memory between them.
 """)
     code(
-        "run_stage('siglip-zero-shot')\nshow_record('siglip_preprocessing.json')\nshow_table('validation_siglip.csv')\nrun_stage('bioclip-zero-shot')\nshow_table('validation_bioclip.csv')\nshow_table('validation_per_class.csv')\nshow_figures('zero_shot_validation.png')"
+        "run_stage('siglip-zero-shot')\nshow_record('siglip_preprocessing.json')\nshow_table('validation_siglip.csv')\nrun_stage('bioclip-zero-shot')\nshow_table('validation_bioclip.csv')\nshow_table('validation_per_class.csv', limit=24)\nshow_figures('zero_shot_validation.png')"
     )
     md("""**Compare:** which prompt condition changes validation rankings, and for which species? Treat a difference from twelve validation photographs as a small-sample observation. Do not choose the canonical prompt from eventual test performance.
 
-<details><summary>Why might scientific names behave differently?</summary>A biological model's training text may align taxonomic names closely with organism imagery; a general model may have encountered more common-name descriptions. This is a hypothesis about representation, not a guarantee for any species.</details>""")
+<details><summary>Why might scientific names behave differently?</summary>A biological model's training text may align taxonomic names closely with organism imagery; a general model may have encountered more common-name descriptions. This is a hypothesis about representation, not a guarantee for any species. Model size, text tower and crop policy also differ between the two checkpoints (see above), so a gap between them cannot be attributed to this hypothesis alone.</details>
+
+<details><summary>Worked answer: did scientific names help both models equally?</summary>No, and on validation they helped neither. SigLIP 2 base accuracy fell from 0.750 (common names) to 0.500 (scientific), and BioCLIP 2 from 1.000 to 0.917. BioCLIP scientific names stay canonical because that choice was declared before any result, not because they scored best. SigLIP 2 large was added after that run, so it has no canonical value yet; your run prints its values above. Canonical-run values, labelled per REL13: revision 0.2.2-candidate, blob 9d0097fb, Colab CLI T4 run recorded on 2026-10-03 in `docs/release-verification.md`. They were not re-run for this view; your run prints its own values above.</details>""")
     md("""## 6. Explore the frozen representation
 
 **Input:** cached BioCLIP image vectors. **System:** L2-normalisation, train-only five-nearest-neighbour voting and a two-dimensional PCA projection fitted on train only. **Output:** validation predictions and a view of the embedding geometry.
 
-For **5-NN**, only training images can be neighbours; votes sum non-negative cosine similarities, with fixed class-order ties. No gradients are needed. **PCA** compresses vectors to two coordinates for display; it can hide separation or invent apparent clusters. Split shapes and species colours are visual aids, not additional evaluation evidence.
+For **5-NN**, only training images can be neighbours; votes sum non-negative cosine similarities, with fixed class-order ties. No gradients are needed. **PCA** compresses vectors to two coordinates for display; it can hide separation or invent apparent clusters. Split shapes and species colours are visual aids, not additional evaluation evidence. The plot shows training and validation photographs only: test photographs stay hidden until §8, after the head and referral rule are locked.
 
 Predict whether images of one species cluster together even when their observers differ.
 """)
     code("run_stage('representations')\nshow_table('validation_knn.csv')\nshow_figures('pca.png')")
     md(
-        """**What to notice:** compare validation 5-NN results with zero-shot results. Neighbour voting tests how this local training set is arranged in the representation. A plausible PCA cluster does not establish accuracy, independence or a species' geographic distribution."""
+        """**What to notice:** compare validation 5-NN results with zero-shot results. Neighbour voting tests how this local training set is arranged in the representation. A plausible PCA cluster does not establish accuracy, independence or a species' geographic distribution.
+
+<details><summary>Worked answer: do species cluster across observers?</summary>What was measured is narrower: training neighbours classified all 12 validation photographs correctly (5-NN accuracy 1.000), although no validation photographer appears in training. That shows successful local classification, not distinct or compact species clusters; any grouping you see in the two-dimensional PCA is qualitative. Twelve photographs from a few photographers is a small test. Canonical-run values, labelled per REL13: revision 0.2.2-candidate, blob 9d0097fb, Colab CLI T4 run recorded on 2026-10-03 in `docs/release-verification.md`. They were not re-run for this view; your run prints its own values above.</details>"""
     )
     md("""## 7. Fit a small head and lock the policy
 
@@ -476,31 +520,43 @@ The learning rate matters here. The starting weights are large (typically about 
 
 Before any test metrics are revealed, lock the referral rule using **validation only**. Confidence is the largest minus second-largest head softmax score. Consider every distinct validation margin, requiring at least 50% coverage. Among thresholds reaching 80% selective accuracy choose greatest coverage; if none reaches it, choose greatest selective accuracy then coverage. Remaining ties choose the higher threshold. Acceptance uses the declared threshold comparison consistently.
 
+The referral threshold reuses the same validation photographs that already selected the learning rate and epoch. Those settings were chosen to lower validation loss, which also tends to widen validation margins, so validation coverage and selective accuracy at the locked threshold are optimistic. A separate calibration split would remove this reuse in a future data freeze.
+
 The 80% teaching target is not a deployment guarantee. With twelve validation records, one decision can materially change a percentage. Predict whether decreasing training loss will always improve validation loss.
 """)
     code("run_stage('adapt-head')\nshow_record('head_training.json')\nshow_record('selected_policy.json')\nshow_figures('loss.png')")
     md(
-        """**Interpret:** locate the selected rate and epoch rather than assuming the final epoch is best. A widening train/validation gap can indicate overfitting even with a frozen backbone. If `head equals zero shot` is True, validation evidence did not favour moving away from the text prior; the head and the canonical zero-shot system will then agree on every test photograph. The head and validation threshold are now fixed. The next section must preserve negative or inconclusive results."""
+        """**Interpret:** locate the selected rate and epoch rather than assuming the final epoch is best. A widening train/validation gap can indicate overfitting even with a frozen backbone. If `head equals zero shot` is True, validation evidence did not favour moving away from the text prior; the head and the canonical zero-shot system will then agree on every test photograph. The head and validation threshold are now fixed. The next section must preserve negative or inconclusive results.
+
+**Reading a selection at the edge of the grid or schedule.** If the selected rate is the largest in the grid, or the selected epoch is the last one, the search stopped at its boundary: a larger rate or more epochs might have lowered validation loss further, so the selection says "best among these settings", not "best possible". A validation loss near zero on twelve photographs also leaves little room to tell settings apart.
+
+<details><summary>Worked answer: does lower training loss always improve validation loss?</summary>Not in general, which is why validation picks the epoch. In this run validation loss was lowest at the final epoch: the selection was learning rate 1e-2 at epoch 20, the largest rate and the last epoch (both at the edge), with validation cross-entropy 0.0177, and the head did not equal the zero-shot classifier. The locked threshold, 0.6202107991, accepted all 12 validation photographs. Canonical-run values, labelled per REL13: revision 0.2.2-candidate, blob 9d0097fb, Colab CLI T4 run recorded on 2026-10-03 in `docs/release-verification.md`. They were not re-run for this view; your run prints its own values above.</details>"""
     )
     md("""## 8. Reveal the observer-disjoint test results
 
-**Input:** test photographs excluded from head fitting and all capstone selection. **System:** the eight predeclared systems with frozen settings. **Output:** the primary head macro-F1 endpoint, comparisons, per-species counts and uncertainty intervals.
+**Input:** test photographs excluded from head fitting and all capstone selection. **System:** the ten predeclared systems with frozen settings. **Output:** the primary head macro-F1 endpoint, comparisons, per-species counts and uncertainty intervals.
 
-The systems are majority, colour, SigLIP common/scientific names, BioCLIP common/scientific names, BioCLIP 5-NN and the BioCLIP head. Top-2 accuracy asks whether the true label occurs among the two highest scores; it does not mean either is verified. The majority baseline has no second choice (its scores are one-hot), so its top-2 accuracy is shown as undefined.
+The systems are majority, colour, SigLIP 2 base common/scientific names (`siglip_common`, `siglip_scientific`), SigLIP 2 large common/scientific names (`siglip_large_common`, `siglip_large_scientific`), BioCLIP common/scientific names, BioCLIP 5-NN and the BioCLIP head. Top-2 accuracy asks whether the true label occurs among the two highest scores; it does not mean either is verified. The majority baseline has no second choice (its scores are one-hot), so its top-2 accuracy is shown as undefined.
 
 Accuracy and macro-F1 intervals come from 2,000 deterministic bootstrap resamples that **resample photographs within each species**, so every resample keeps three test photographs per species. Resampling without that constraint would sometimes drop a species entirely, and macro-F1 would then score it 0: even a classifier that is right on every photograph would receive a lower bound near 0.75. The intervals still treat photographs as independent although they come from only a few photographers (see `test observers` in the table), so they are optimistic, and they omit pretraining overlap, selection bias and label error.
+
+**Zero-width intervals are not certainty.** When a system is right on every test photograph of a species (or wrong on every one), resampling within that species reproduces the same result, so the stratified interval has zero width. A perfect classifier always gets one: in the 2026-10-03 run, 5 of the 8 accuracy intervals had zero width. A zero-width interval means the resampling distribution is degenerate: it is not an uncertainty estimate, and not a certain score. The two metrics can degenerate separately, so the table flags each (`accuracy bootstrap degenerate`, `macro f1 bootstrap degenerate`): accuracy stays constant when every species is all right or all wrong, while macro-F1 can still vary because resamples move the errors between destination species. As a **hypothetical illustration for accuracy only**, the table also shows a Wilson interval (`accuracy wilson low` to `accuracy wilson high`): the range accuracy would have if the 12 test photographs were independent trials (12 of 12 gives about 0.76 to 1.00; by the rule of three, zero errors in 12 is consistent with an error rate up to about 3/12 = 0.25). They are not independent, coming from four photographers, and Wilson says nothing about macro-F1, so it is not this study's uncertainty. Report the observed counts instead and say that uncertainty across new photographers is not reliably quantified by this design.
 
 Predict whether head adaptation improves every species or redistributes errors. Do not revise the head, prompt, k or threshold after reading this section.
 """)
     code(
-        "run_stage('evaluate')\nshow_table('metrics.csv')\nshow_table('metrics.csv', columns=['system', 'accuracy_low', 'accuracy_high', 'macro_f1_low', 'macro_f1_high', 'test_observers', 'paired_correctness_difference_vs_bioclip_scientific'])\nshow_table('per_class_metrics.csv', limit=32)\nshow_figures('confusion_test_*.png')\nshow_table('error_panel.csv')\nif (ROOT / 'outputs' / 'figures' / 'errors.png').exists():\n    show_figures('errors.png')"
+        "run_stage('evaluate')\nshow_table('metrics.csv')\nshow_table('metrics.csv', columns=['system', 'accuracy_low', 'accuracy_high', 'macro_f1_low', 'macro_f1_high', 'accuracy_bootstrap_degenerate', 'macro_f1_bootstrap_degenerate', 'accuracy_wilson_low', 'accuracy_wilson_high', 'test_observers', 'paired_correctness_difference_vs_bioclip_scientific'])\nshow_table('per_class_metrics.csv', limit=40)\nshow_figures('confusion_test_*.png', limit=10)\nshow_table('error_panel.csv')\nif (ROOT / 'outputs' / 'figures' / 'errors.png').exists():\n    show_figures('errors.png')"
     )
     md("""**What to notice:** pair each average with support and predicted counts. Read confusion counts and row-normalised percentages. The error panel uses four declared diagnostic categories, each named in square brackets above its photograph: the highest-margin correct prediction, the highest-margin incorrect prediction (which may still have a modest margin), the lowest-margin prediction, and a photograph where the head and SigLIP (scientific names) disagree. Each photograph appears once; when a record already represents an earlier category, the next candidate is used. The `error_panel.csv` table reports any category with no test record; do not manufacture a failure or success to fill it.
 
-Compare the head with the canonical BioCLIP scientific-name reference using paired per-record correctness. Identify one plausible explanation and one alternative, such as crop, background, community label uncertainty or pretraining overlap. These twelve test images do not estimate nationwide identification performance.""")
+Compare the head with the canonical BioCLIP scientific-name reference using paired per-record correctness. Identify one plausible explanation and one alternative, such as crop, background, community label uncertainty or pretraining overlap. These twelve test images do not estimate nationwide identification performance.
+
+<details><summary>Worked answer: did head adaptation improve every species?</summary>It changed nothing visible on this test set. The head and the canonical BioCLIP scientific-name system were both right on all 12 test photographs (paired correctness difference 0.000), so there was nothing to improve or redistribute; the head's moved weights show up in its margins, not its labels. SigLIP 2 base scored macro-F1 0.364 (common names) and 0.270 (scientific). SigLIP 2 large was added after that run, so it has no canonical value yet; your run prints its values above. Canonical-run values, labelled per REL13: revision 0.2.2-candidate, blob 9d0097fb, Colab CLI T4 run recorded on 2026-10-03 in `docs/release-verification.md`. They were not re-run for this view; your run prints its own values above.</details>""")
     md("""## 9. Change one thing: the review threshold
 
 **Predict → change one thing → run → observe → explain.** First run the canonical triage policy. It reports acceptance coverage, accuracy among accepted cases, incorrect accepted cases, referrals and per-species referral rates. Primary classification metrics still include every test record.
+
+This section and the next **demonstrate and challenge** a locked referral rule; they do not test whether referral improves a field-survey workflow. If the rule accepts every test photograph and none is wrong, there is no error for referral to catch. Showing a benefit would need policies compared at matched review workload on a larger, prespecified mix of candidate and unsuitable images.
 
 Then use the form below to display a lower, canonical or higher threshold. "Lower" and "higher" are the neighbouring candidate thresholds from the validation sweep, the next distinct value below and above the locked one, so each view is a threshold that the validation sweep actually evaluated. On the test photographs a step can still leave every decision unchanged if no test margin falls between the two values; the comparison table shows the accepted and referred counts either way. Thresholds are shown with ten significant digits because head margins can sit very close to 1. Only the display decision changes. Weights, scores, records and canonical exports remain fixed. The test risk-coverage curve is a diagnostic, not permission to retune the reported policy.
 
@@ -525,19 +581,23 @@ show_figures('activity.png')
         cellView="form",
     )
     md(
-        """**Explain:** compare how many records were accepted and how many accepted labels were wrong. A high margin may still accompany a confident mistake. Referral is a workflow policy, not calibrated uncertainty or a reliable detector of unfamiliar organisms."""
+        """**Explain:** compare how many records were accepted and how many accepted labels were wrong. A high margin may still accompany a confident mistake. Referral is a workflow policy, not calibrated uncertainty or a reliable detector of unfamiliar organisms.
+
+<details><summary>Worked answer: does a higher threshold remove every incorrect accepted case?</summary>A higher threshold can only lower coverage or leave it unchanged, because it accepts a subset of what the lower one accepted. It does not have to remove every incorrect accepted case: a confident mistake whose margin is above the new threshold stays accepted. On validation, the next higher candidate (0.999889479) accepted 11 of 12 photographs instead of 12. Canonical-run values, labelled per REL13: revision 0.2.2-candidate, blob 9d0097fb, Colab CLI T4 run recorded on 2026-10-03 in `docs/release-verification.md`. They were not re-run for this view; your run prints its own values above.</details>"""
     )
     md("""## 10. Challenge the closed candidate list
 
-The separate probe set includes at least two bird species outside the candidate list, two non-bird Philippine organisms and a synthetic blank control. These records never enter fitting, threshold selection or primary metrics.
+The separate probe set includes at least two bird species outside the candidate list, two non-bird Philippine organisms and a synthetic blank control. These records never enter fitting, threshold selection or primary metrics. They challenge the referral rule with images it should refer.
 
 **Input:** unsuitable or outside-list images. **System:** every predeclared system, plus the same four-class head and locked policy. **Output:** forced candidate labels from every system, and descriptive referral behaviour for the head. Predict whether all unsuitable images will be referred.
 """)
     code(
-        "show_table('probe_predictions.csv', columns=['id', 'system', 'truth', 'prediction', 'margin', 'accepted'], limit=40)\nshow_figures('probes.png')"
+        "show_table('probe_predictions.csv', columns=['id', 'system', 'truth', 'prediction', 'margin', 'accepted'], limit=50)\nshow_figures('probes.png')"
     )
     md(
-        """**Interpret:** every system, zero-shot, nearest-neighbour or fitted, returns one of its four labels even when none is correct; `accepted` is undefined for systems without a referral policy. Some probes may be accepted confidently by the head. Record that failure rather than scoring an outside-list label as an ordinary four-class test example. Expert review and a broader validation design remain necessary for field use."""
+        """**Interpret:** every system, zero-shot, nearest-neighbour or fitted, returns one of its four labels even when none is correct; `accepted` is undefined for systems without a referral policy. Some probes may be accepted confidently by the head. Record that failure rather than scoring an outside-list label as an ordinary four-class test example. Expert review and a broader validation design remain necessary for field use.
+
+<details><summary>Worked answer: were all unsuitable images referred?</summary>No. Every system forced one of its four labels on all five probes. The head accepted three of them with high margins (an outside-list flowerpecker at 0.911, a butterfly at 0.997 and a snail at 0.995) and referred only the outside-list sparrow and the blank control. Canonical-run values, labelled per REL13: revision 0.2.2-candidate, blob 9d0097fb, Colab CLI T4 run recorded on 2026-10-03 in `docs/release-verification.md`. They were not re-run for this view; your run prints its own values above.</details>"""
     )
     md("""## 11. Verify the head and results bundle
 
@@ -552,7 +612,7 @@ The runtime table reports the measured bootstrap, download and per-stage times w
     )
     md("""### Optional: explore your own photographs
 
-This form is disabled by default and runs in a separate directory. Upload your ZIP through Colab's Files panel, then enter its path. Acceptable layouts are `labels.csv` with `id,image,label,scientific_name,observer_group`, or `<label>/<image>` folders (a single enclosing top-level folder, as produced by zipping a folder, is accepted) plus a JSON mapping of labels to scientific names. The folder layout has no observer groups, so it always runs as descriptive inference. The BYOD run reuses the two model snapshots already verified in this session instead of downloading them again. Use 2–20 classes, at least twelve images per class and no duplicate images. No location fields are required or retained.
+This form is disabled by default and runs in a separate directory. Upload your ZIP through Colab's Files panel, then enter its path. Acceptable layouts are `labels.csv` with `id,image,label,scientific_name,observer_group`, or `<label>/<image>` folders (a single enclosing top-level folder, as produced by zipping a folder, is accepted) plus a JSON mapping of labels to scientific names. The folder layout has no observer groups, so it always runs as descriptive inference. The BYOD run reuses the model snapshots already verified in this session instead of downloading them again. Use 2–20 classes and no duplicate images. Descriptive inference accepts any number of images per class (at least one) and makes **no performance claims**: its output carries that notice, has no held-out split and must not be reported as accuracy. Grouped evaluation needs at least twelve images per class (smaller classes are refused). No location fields are required or retained.
 
 Grouped evaluation requires at least six distinct observer groups per class so train, validation and test can each contain two observers, with a feasible global assignment and at least 6/3/3 images. This is stricter than merely supplying three groups per class. If groups are absent, only descriptive inference is permitted; the notebook refuses to present an equivalent held-out adaptation score. Set the rights confirmation only for photographs you are authorised to process. BYOD images are never added to the canonical archive.
 """)
@@ -562,17 +622,25 @@ USE_BYOD = False # @param {type:'boolean'}
 BYOD_ZIP = '' # @param {type:'string'}
 BYOD_CLASS_PROMPTS_JSON = '{}' # @param {type:'string'}
 BYOD_AUTHORIZED = False # @param {type:'boolean'}
-if not USE_BYOD:
-    print('Optional BYOD is off. The canonical capstone is complete.')
-else:
+
+def byod_refused(reason):
+    # A refusal is one message, not a traceback: fix the input and re-run this cell.
+    print('BYOD refused:', reason)
+    print('The canonical run is unchanged. Fix the input and re-run this cell.')
+
+def run_byod():
+    global ROOT
     if not BYOD_AUTHORIZED:
-        raise ValueError('Confirm that you are authorised to process the supplied photographs.')
+        return byod_refused('confirm that you are authorised to process the supplied photographs.')
     zip_path = Path(BYOD_ZIP).expanduser().resolve()
     if not zip_path.is_file():
-        raise ValueError('Upload a ZIP in the Colab Files panel and enter its actual path.')
-    prompts = json.loads(BYOD_CLASS_PROMPTS_JSON)
+        return byod_refused('upload a ZIP in the Colab Files panel and enter its actual path.')
+    try:
+        prompts = json.loads(BYOD_CLASS_PROMPTS_JSON)
+    except json.JSONDecodeError as exc:
+        return byod_refused(f'the class prompts are not valid JSON ({exc.msg}).')
     if not isinstance(prompts, dict):
-        raise ValueError('Class prompts must be a JSON object mapping labels to scientific names.')
+        return byod_refused('class prompts must be a JSON object mapping labels to scientific names.')
     canonical_root = ROOT
     byod_root = ROOT.parent / (ROOT.name + '-byod-' + uuid.uuid4().hex[:6])
     byod_root.mkdir(parents=True)
@@ -593,34 +661,47 @@ else:
     prepare_script = ('import json,sys; from pathlib import Path; import biodiversity_core as core; '
                       'core.prepare_byod(Path(sys.argv[1]),Path(sys.argv[2]),'
                       'class_prompts=json.loads(sys.argv[3]),authorization=True)')
-    subprocess.run([str(PYTHON), '-c', prepare_script, str(byod_root), str(zip_path), json.dumps(prompts)],
-                   cwd=byod_root, env=ENV, check=True)
+    prepared = subprocess.run([str(PYTHON), '-c', prepare_script, str(byod_root), str(zip_path), json.dumps(prompts)],
+                              cwd=byod_root, env=ENV, capture_output=True, text=True)
+    if prepared.returncode:
+        lines = [line.strip() for line in prepared.stderr.splitlines() if line.strip()]
+        reason = lines[-1] if lines else f'exit {prepared.returncode}'
+        if reason.startswith('ValueError: '):
+            return byod_refused(reason[len('ValueError: '):])
+        print(prepared.stderr[-7000:])
+        raise RuntimeError('BYOD preparation failed unexpectedly. Preserve this output.')
     manifest = json.loads((byod_root / 'data_manifest.json').read_text(encoding='utf-8'))
     try:
         ROOT = byod_root
         if manifest.get('inference_only'):
-            run_stage('byod-infer')
+            if not run_stage('byod-infer', refusal='BYOD'):
+                return None
             show_table('byod_predictions.csv')
-            print('Ungrouped BYOD: descriptive inference only; no held-out metric.')
+            notice = json.loads((ROOT / 'outputs' / 'byod_notice.json').read_text(encoding='utf-8'))
+            print('No performance claims:', notice['notice'])
         else:
             for stage in ('prepare', 'siglip-zero-shot', 'bioclip-zero-shot', 'representations',
                           'adapt-head', 'evaluate', 'triage', 'reload', 'report'):
-                run_stage(stage)
+                if not run_stage(stage, refusal='BYOD'):
+                    return None
             show_table('metrics.csv')
             show_path(ROOT / 'outputs' / 'results.zip')
         print('Separate BYOD outputs:', ROOT / 'outputs')
     finally:
         ROOT = canonical_root
+
+if not USE_BYOD:
+    print('Optional BYOD is off. The canonical capstone is complete.')
+else:
+    run_byod()
 """,
         cellView="form",
     )
     md("""## 12. Conclude with evidence
 
-Complete this optional record in your own words:
+The conclusion template shown at the end of §11 (`conclusion.md`, also inside the results ZIP) is the only one. It is already filled with this run's measured values: sample and test sizes, held-out photographers, the head's correct count and macro-F1 with its species-stratified interval (marked when degenerate), whether the head equals the zero-shot classifier, and the locked rule's test coverage and selective accuracy. It states that uncertainty across new photographers is not reliably quantified here; keep that sentence. Complete its bracketed items (baselines, failure pattern, the display-threshold trade-off, bounded use and next evidence) in your own words.
 
-> On this observer-disjoint sample of [n] Philippine bird photographs from [number of test photographers] held-out photographers, [system] achieved [macro-F1 with its species-stratified interval] compared with [baselines]. The locked review policy accepted [coverage] with [selective accuracy], while [failure pattern] remained. Changing only the display threshold showed [trade-off]. This supports [bounded use], but does not establish pretraining independence, open-set recognition, nationwide accuracy or expert-level identification. We would next collect [specific evidence].
-
-Research Grade labels may be wrong. Candidate scores are not taxonomic truth. Observer grouping does not remove unresolved foundation-model pretraining overlap. The model does not count individuals, estimate abundance or infer population trends. One small frozen sample cannot establish population abundance, conservation status, geographic occurrence or operational performance across Philippine geography, seasons, habitats, cameras, life stages or rare taxa. Endemic status never justifies exposing exact locations, and nothing here should be used to reconstruct them. Because the learning rate and epoch were chosen on validation from a predeclared grid, a head that fails to beat zero-shot is still an informative result. State whether the selected head equals the zero-shot classifier. The strongest next study uses more independent observers, species and labelled cases, with the evaluation plan fixed before test inspection.
+Research Grade labels may be wrong. Candidate scores are not taxonomic truth. The SigLIP 2 versus BioCLIP 2 gaps compare checkpoints that differ in training data, text tower, resolution and crop policy; the capacity-matched SigLIP 2 large removes the image-tower size difference only, so no gap is evidence about biological pretraining alone. Observer grouping does not remove unresolved foundation-model pretraining overlap. The model does not count individuals, estimate abundance or infer population trends. One small frozen sample cannot establish population abundance, conservation status, geographic occurrence or operational performance across Philippine geography, seasons, habitats, cameras, life stages or rare taxa. Endemic status never justifies exposing exact locations, and nothing here should be used to reconstruct them. Because the learning rate and epoch were chosen on validation from a predeclared grid, a head that fails to beat zero-shot is still an informative result. State whether the selected head equals the zero-shot classifier. The strongest next study uses more independent observers, species and labelled cases, with the evaluation plan fixed before test inspection.
 
 ## 13. Continue exploring DIMER
 
@@ -637,7 +718,7 @@ Browse the [DIMER model repository](https://training.dimer1.asti.dost.gov.ph/sig
 | Reload or CSV parity fails | Retain outputs and resolve the mismatch before release. |
 | Undefined metric | Read its denominator and support; do not replace it with a favourable number. |
 
-Sources: [BioCLIP 2](https://huggingface.co/imageomics/bioclip-2), [SigLIP 2](https://huggingface.co/google/siglip2-base-patch16-224), [iNaturalist developer guidance](https://www.inaturalist.org/pages/developers), [iNaturalist open data](https://github.com/inaturalist/inaturalist-open-data), [DIMER notebook standard](https://github.com/kurtvalcorza/ml-worker/blob/main/integrations/dimer/fleet-specs/NOTEBOOK_SPEC.md). Exact immutable model and data identities are carried in this notebook and exported in the run.
+Sources: [BioCLIP 2](https://huggingface.co/imageomics/bioclip-2), [SigLIP 2 base](https://huggingface.co/google/siglip2-base-patch16-224), [SigLIP 2 large](https://huggingface.co/google/siglip2-large-patch16-256), [iNaturalist developer guidance](https://www.inaturalist.org/pages/developers), [iNaturalist open data](https://github.com/inaturalist/inaturalist-open-data), [DIMER notebook standard](https://github.com/kurtvalcorza/ml-worker/blob/main/integrations/dimer/fleet-specs/NOTEBOOK_SPEC.md). Exact immutable model and data identities are carried in this notebook and exported in the run.
 """)
     return {
         "nbformat": 4,

@@ -151,11 +151,13 @@ def test_byod_zip_traversal_and_ungrouped_inference_only(tmp_path):
         core.prepare_byod(tmp_path / "run", str(bad), authorization=True)
     good = tmp_path / "good.zip"
     with zipfile.ZipFile(good, "w") as archive:
+        # 12 distinct images per class: the stated per-class minimum (capstone BIO-m2).
         for index in range(2):
-            image = Image.new("RGB", (32, 32), (index * 100, 20, 30))
-            stream = io.BytesIO()
-            image.save(stream, format="PNG")
-            archive.writestr(f"c{index}/image.png", stream.getvalue())
+            for j in range(12):
+                image = Image.new("RGB", (32, 32), (index * 100, 20 + j, 30))
+                stream = io.BytesIO()
+                image.save(stream, format="PNG")
+                archive.writestr(f"c{index}/image{j}.png", stream.getvalue())
     result = core.prepare_byod(tmp_path / "run", str(good), {"c0": "Species A", "c1": "Species B"}, True)
     assert result["inference_only"] and all(r["split"] == "probe" for r in result["records"])
     assert core.read_json(tmp_path / "run" / "data_manifest.json") == result

@@ -426,6 +426,16 @@ def refusal_probes(root, manifest):
     return rows
 
 
+# General comparators, run in this order in one stage process (base first, so its scores are
+# computed exactly as before). The large checkpoint is the capacity-matched comparator chosen
+# by the owner for capstone BIO-M2 (option B): ViT-L/16 at 256 px has the same width, depth and
+# 256-patch token count as BioCLIP 2's ViT-L/14 at 224 px.
+SIGLIP_CHECKPOINTS = (
+    ("siglip", "google/siglip2-base-patch16-224", "5ffaac51d5e2f3367f7dab0cad4be4cb07c0caa2"),
+    ("siglip_large", "google/siglip2-large-patch16-256", "787800c8990e6f058423089178e718139608408c"),
+)
+
+
 def stage_model(root, key, record_download=True):
     """Download only immutable declared snapshot files, verify before model construction."""
     from huggingface_hub import hf_hub_download
@@ -433,7 +443,7 @@ def stage_model(root, key, record_download=True):
     m = core.read_json(root / "model_manifest.json")[key]
     expected = {
         "bioclip": (BIO_ID, BIO_REV),
-        "siglip": ("google/siglip2-base-patch16-224", "5ffaac51d5e2f3367f7dab0cad4be4cb07c0caa2"),
+        **{name: (model_id, revision) for name, model_id, revision in SIGLIP_CHECKPOINTS},
     }
     if (m["modelId"], m["revision"]) != expected[key]:
         raise ValueError("Model identity does not match the predeclared comparison")
@@ -481,34 +491,40 @@ def siglip_zero_shot(root):
     from transformers import AutoModel, AutoProcessor
 
     manifest, classes, records = context(root)
-    folder = stage_model(root, "siglip")
-    model = (
-        AutoModel.from_pretrained(
-            folder, local_files_only=True, trust_remote_code=False, use_safetensors=True
-        )
-        .float()
-        .cuda()
-        .eval()
-    )
-    processor = AutoProcessor.from_pretrained(folder, local_files_only=True, trust_remote_code=False)
     data, used = {}, {}
-    for condition, field in (("common", "common_name"), ("scientific", "scientific_name")):
-        prompts = siglip_prompts(manifest["classes"], field)
-        used[condition] = prompts
-        scores = []
-        for start in range(0, len(records), 8):
-            inputs = processor(
-                text=prompts,
-                images=images(root, records[start : start + 8]),
-                return_tensors="pt",
-                **SIGLIP_TEXT_KWARGS,
-            ).to("cuda")
-            if tuple(inputs["input_ids"].shape) != (len(prompts), SIGLIP_TEXT_KWARGS["max_length"]):
-                raise ValueError("SigLIP text was not padded to its documented 64-token length")
-            with torch.no_grad():
-                output = model(**inputs)
-                scores.extend(torch.sigmoid(output.logits_per_image).float().cpu().numpy())
-        data[f"siglip_{condition}"] = np.asarray(scores)
+    # The same protocol for every general checkpoint: both prompt vocabularies, the documented
+    # template and padding, sigmoid scores. One model is resident at a time.
+    for key, _model_id, _revision in SIGLIP_CHECKPOINTS:
+        folder = stage_model(root, key)
+        model = (
+            AutoModel.from_pretrained(
+                folder, local_files_only=True, trust_remote_code=False, use_safetensors=True
+            )
+            .float()
+            .cuda()
+            .eval()
+        )
+        processor = AutoProcessor.from_pretrained(folder, local_files_only=True, trust_remote_code=False)
+        for condition, field in (("common", "common_name"), ("scientific", "scientific_name")):
+            prompts = siglip_prompts(manifest["classes"], field)
+            used[condition] = prompts
+            scores = []
+            for start in range(0, len(records), 8):
+                inputs = processor(
+                    text=prompts,
+                    images=images(root, records[start : start + 8]),
+                    return_tensors="pt",
+                    **SIGLIP_TEXT_KWARGS,
+                ).to("cuda")
+                if tuple(inputs["input_ids"].shape) != (len(prompts), SIGLIP_TEXT_KWARGS["max_length"]):
+                    raise ValueError("SigLIP text was not padded to its documented 64-token length")
+                with torch.no_grad():
+                    output = model(**inputs)
+                    scores.extend(torch.sigmoid(output.logits_per_image).float().cpu().numpy())
+            data[f"{key}_{condition}"] = np.asarray(scores)
+        del model, processor
+        gc.collect()
+        torch.cuda.empty_cache()
     np.savez(root / "outputs" / "siglip_scores.npz", **data)
     core.write_json(
         root / "outputs" / "siglip_preprocessing.json",
@@ -519,6 +535,10 @@ def siglip_zero_shot(root):
             "score": "sigmoid(logits_per_image); not normalised across candidates",
             "prompts": used,
             "source": "Transformers SigLIP 2 usage notes (lowercased text, padding to 64 tokens)",
+            "checkpoints": {
+                key: {"model_id": model_id, "revision": revision}
+                for key, model_id, revision in SIGLIP_CHECKPOINTS
+            },
         },
     )
     val = indexes(records, "validation")
@@ -527,9 +547,6 @@ def siglip_zero_shot(root):
         root / "outputs" / "validation_siglip.csv",
         [{"system": k, **scalar_metrics(y, s[val], k)} for k, s in data.items()],
     )
-    del model, processor
-    gc.collect()
-    torch.cuda.empty_cache()
 
 
 def siglip_prompts(classes, field):
@@ -642,6 +659,13 @@ def byod_infer(root):
                     }
                 )
     write_csv(root / "outputs" / "byod_predictions.csv", rows)
+    counts = {}
+    for r in records:
+        counts[r["label"]] = counts.get(r["label"], 0) + 1
+    core.write_json(
+        root / "outputs" / "byod_notice.json",
+        {"performance_claims": "none", "notice": core.BYOD_INFERENCE_NOTICE, "images_per_class": counts},
+    )
 
 
 def representations(root):
@@ -659,7 +683,8 @@ def representations(root):
     )
     projection = PCA(n_components=2, svd_solver="full").fit(features[train]).transform(features)
     fig, ax = plt.subplots(figsize=(9, 6))
-    for split, marker in (("train", "o"), ("validation", "^"), ("test", "s")):
+    # Test points stay hidden until §8: §6 runs before the head and policy are locked (CX1).
+    for split, marker in (("train", "o"), ("validation", "^")):
         ix = indexes(records, split)
         for c, label in enumerate(classes):
             chosen = [i for i in ix if records[i]["label"] == label]
@@ -674,7 +699,7 @@ def representations(root):
     ax.set(
         xlabel="Principal component 1",
         ylabel="Principal component 2",
-        title="Train-fitted PCA · descriptive visualisation only",
+        title="Train-fitted PCA · train and validation only; test withheld · descriptive only",
     )
     ax.legend(fontsize=7, bbox_to_anchor=(1, 1))
     figure(root, "pca.png", fig)
@@ -964,19 +989,27 @@ def evaluate(root):
     canonical_correct = scores["bioclip_scientific"][ix].argmax(1) == y
     test_observers = len({records[i]["observer"] for i in ix})
     for name, values in scores.items():
+        stratified = core.bootstrap(y, values[ix], n_boot=CONFIG["bootstrap"], stratify=True)
+        wilson = core.wilson_interval(int((values[ix].argmax(1) == y).sum()), len(ix))
         metric_rows.append(
             {
                 "system": name,
                 **scalar_metrics(y, values[ix], name),
                 # Stratified by reference species: every resample keeps the test support per
                 # species, so a species cannot vanish from a resample and score F1 = 0 (BC-M3).
-                **core.bootstrap(y, values[ix], n_boot=CONFIG["bootstrap"], stratify=True),
+                **stratified,
                 "bootstrap_method": "records resampled within each species; support fixed",
                 "test_records": len(ix),
                 "test_observers": test_observers,
                 "paired_correctness_difference_vs_bioclip_scientific": float(
                     np.mean((values[ix].argmax(1) == y).astype(int) - canonical_correct.astype(int))
                 ),
+                # Added after the bootstrap columns, so existing columns keep their values and
+                # order. Wilson is a hypothetical independent-photo illustration for accuracy
+                # only (BIO-M1, CX3); the flags say which bootstrap distribution is degenerate (CX4).
+                "accuracy_wilson_low": wilson["low"],
+                "accuracy_wilson_high": wilson["high"],
+                **bootstrap_degenerate(stratified),
             }
         )
         details = core.metrics(y, values[ix])
@@ -1265,6 +1298,8 @@ def report(root):
         "accuracy",
         "macro_f1",
         "top2_accuracy",
+        "accuracy_wilson_low",
+        "accuracy_wilson_high",
         "precision",
         "recall",
         "f1",
@@ -1340,7 +1375,7 @@ def report(root):
                 "bootstrap": bootstrap_record,
                 "downloads": {
                     key: core.read_json(out / f"download_{key}.json")
-                    for key in ("dataset", "siglip", "bioclip")
+                    for key in ("dataset", "siglip", "siglip_large", "bioclip")
                     if (out / f"download_{key}.json").exists()
                 },
                 "report_seconds_before_archive": time.monotonic() - report_started,
@@ -1363,15 +1398,29 @@ def report(root):
             ],
         },
     )
+    canonical_test = [
+        r for r in read_csv(out / "risk_coverage.csv") if r["split"] == "test" and r["canonical"] == "True"
+    ]
+    if len(canonical_test) != 1:
+        raise ValueError("Expected one canonical test row in risk_coverage.csv")
+    from collections import Counter
+
+    manifest = core.read_json(root / "data_manifest.json")
+    test_observers = Counter(records[i]["observer"] for i in indexes(records, "test"))
+    sample = {
+        "byod": bool(manifest.get("byod")),
+        "n_total": sum(r["split"] in ("train", "validation", "test") for r in records),
+        "n_test": len(indexes(records, "test")),
+        "test_observers": len(test_observers),
+        "largest_observer": max(test_observers.values()),
+    }
     (out / "conclusion.md").write_text(
-        "On this observer-disjoint sample of [n] Philippine bird photographs from [number] held-out "
-        "photographers, [system] achieved [macro-F1 with its species-stratified interval] compared "
-        "with [baselines]. The selected head [did / did not] equal the zero-shot classifier "
-        "(learning rate and epoch chosen on validation). The review policy accepted [coverage] with "
-        "[selective accuracy], while [failure pattern] remained. This supports [bounded use], "
-        "but does not establish pretraining independence, open-set recognition, nationwide "
-        "accuracy or expert-level identification. Next collect [evidence].\n\n"
-        "Completion notes are optional, not required submissions.\n",
+        conclusion_text(
+            {m["system"]: m for m in metrics_rows},
+            canonical_test[0],
+            core.read_json(out / "head_training.json")["head_equals_zero_shot"],
+            sample,
+        ),
         encoding="utf-8",
     )
     # Photos and photo-derived figures stay out of the default archive.
@@ -1391,6 +1440,73 @@ def report(root):
     if archive.stat().st_size > 100_000_000:
         raise ValueError("Results archive exceeds 100 MB")
     core.write_json(out / "archive_verification.json", verify_archive(archive, hashes, classes))
+
+
+def bootstrap_degenerate(interval):
+    """Per-metric flags: True when every stratified resample gave the same value (CX4).
+
+    A degenerate resampling distribution gives no uncertainty estimate; the point estimate is
+    still measured. Accuracy can stay constant while macro-F1 varies, because resamples move
+    errors between destination classes without changing how many records are correct.
+    """
+    return {
+        "accuracy_bootstrap_degenerate": bool(interval["accuracy_low"] == interval["accuracy_high"]),
+        "macro_f1_bootstrap_degenerate": bool(interval["macro_f1_low"] == interval["macro_f1_high"]),
+    }
+
+
+def conclusion_text(metrics, canonical_test, head_equals_zero_shot, sample):
+    """The one conclusion template, prefilled with this run's measured values (BIO-m5).
+
+    Only interpretation is left in brackets. `sample` carries the dataset context, so a grouped
+    BYOD run is never described as Philippine bird photographs (CX9). Observed counts are
+    reported; uncertainty across new photographers is stated as not quantified here, because
+    the bootstrap can be degenerate and Wilson assumes independent photographs (BIO-M1, CX3).
+    """
+
+    def value(number):
+        return "undefined" if number in (None, "") else f"{float(number):.3f}"
+
+    head = metrics["bioclip_head"]
+    f1, f1_low, f1_high = value(head["macro_f1"]), value(head["macro_f1_low"]), value(head["macro_f1_high"])
+    n_test = sample["n_test"]
+    correct = round(float(head["accuracy"]) * n_test)
+    degenerate = "" if float(head["macro_f1_low"]) < float(head["macro_f1_high"]) else (
+        "; degenerate, so this method gives no uncertainty for it"
+    )
+    equals = "did" if str(head_equals_zero_shot) == "True" else "did not"
+    coverage, selective = value(canonical_test["coverage"]), value(canonical_test["selective_accuracy"])
+    if sample.get("byod"):
+        described = "user-supplied photographs"
+        provenance = (
+            "Labels, groups and provenance are as supplied by the user and were not checked against "
+            "any reference; nothing here describes the canonical Philippine sample. "
+        )
+        scope = "accuracy beyond these photographs"
+    else:
+        described = "Philippine bird photographs"
+        provenance = ""
+        scope = "nationwide accuracy"
+    return (
+        f"On this observer-disjoint sample of {sample['n_total']} {described}, with {n_test} test "
+        f"photographs from {sample['test_observers']} held-out photographers (the largest share from "
+        f"one photographer: {sample['largest_observer']}), the BioCLIP head labelled {correct} of "
+        f"{n_test} test photographs correctly, macro-F1 {f1} (species-stratified bootstrap "
+        f"{f1_low}-{f1_high}{degenerate}), compared with [baselines]. With this few photographers, "
+        "uncertainty about performance on new photographers is not reliably quantified here. "
+        f"The selected head {equals} equal the zero-shot classifier (learning rate and epoch chosen "
+        f"on validation). The locked review rule accepted {coverage} of test photographs with "
+        f"selective accuracy {selective}, while [failure pattern] remained; this demonstrates the "
+        "rule, it does not show a review-workload benefit. Changing only the display threshold "
+        f"showed [trade-off]. {provenance}This supports [bounded use], but does not establish "
+        f"pretraining independence, open-set recognition, {scope}, expert-level identification "
+        "or that a gap between BioCLIP 2 and either SigLIP 2 checkpoint (including the "
+        "capacity-matched large one) is caused by biological pretraining alone. "
+        "Next collect [evidence].\n\n"
+        "Values come from this run's metrics.csv, risk_coverage.csv and head_training.json; "
+        "the bracketed items are yours to interpret. Completion notes are optional, not required "
+        "submissions.\n"
+    )
 
 
 EXCLUDED_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp", ".img", ".npy", ".npz", ".bin", ".pt", ".pth", ".whl")
@@ -1455,7 +1571,7 @@ def runtime_rows(root, stages):
             if key in boot:
                 rows.append({"step": "bootstrap: " + key.replace("_seconds", "").replace("_", " "),
                              "seconds": boot[key]})
-    for key in ("dataset", "siglip", "bioclip"):
+    for key in ("dataset", "siglip", "siglip_large", "bioclip"):
         path = out / f"download_{key}.json"
         if path.exists():
             record = core.read_json(path)

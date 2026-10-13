@@ -156,6 +156,8 @@ def finished_root(tmp_path, monkeypatch):
             "session_started_at": 0.0,
         },
     )
+    # adapt-head writes this in a real run; the fixture head is the zero-shot classifier.
+    core.write_json(out / "head_training.json", {"head_equals_zero_shot": True})
     for key, seconds in (("dataset", 3.0), ("siglip", 4.0), ("bioclip", 6.0)):
         core.write_json(out / f"download_{key}.json", {"downloaded_bytes": 10, "seconds": seconds})
     for stage in run.STAGES[:-1]:
@@ -566,8 +568,10 @@ def _png(value):
 def test_byod_accepts_one_enclosing_folder_and_explains_bad_csv(tmp_path, notebook):
     good = tmp_path / "folder.zip"
     with zipfile.ZipFile(good, "w") as archive:
+        # 12 distinct images per class: the stated per-class minimum (capstone BIO-m2).
         for index in range(2):
-            archive.writestr(f"my_photos/c{index}/image.png", _png(index * 90))
+            for j in range(12):
+                archive.writestr(f"my_photos/c{index}/image{j}.png", _png(index * 90 + j))
     result = core.prepare_byod(tmp_path / "run", str(good), {"c0": "Species A", "c1": "Species B"}, True)
     assert sorted(c["label"] for c in result["classes"]) == ["c0", "c1"]
     bad = tmp_path / "bad.zip"
