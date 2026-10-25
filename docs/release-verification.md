@@ -394,6 +394,8 @@ runs above executed blob `fd96c48d`; blob `9d0097fb` was re-run on 2026-10-03 (b
 
 ## Current status
 
+**Tier C wording revision (2026-10-25, branch `fix/bioclip2-biodiversity-tier-c-2026-10-25`).** The generator now adds the pretraining-overlap statement (DAT9), a narrower Interpretation claim, run-labelled numbers (REL13), the use notice, `notebook_kind` and IEEE references. Default-path code is unchanged; the regenerated notebook blob is `0c8e4a72` (`0c8e4a720c8843d3e83dad009524ea2b1ea7108e`). This blob is **Candidate** and its hosted runs are **pending** (REL14): the 2026-10-03 Colab T4 run below is evidence for `5226299a` only, not for this blob.
+
 `tutorials/bioclip2_biodiversity_colab.ipynb` at commit `bcce1a8` / notebook blob `5226299a` passed static checks
 (generator `--check` OK) and completed the default path in **one pass, with no restart and 0 errors**, on a fresh
 Colab Tesla T4 session on 2026-10-03 (Colab CLI sequential execution; evidence in
