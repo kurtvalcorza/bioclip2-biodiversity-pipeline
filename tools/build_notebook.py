@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 GENERATOR_VERSION = "build_notebook.py/2.1"
-NOTEBOOK_SPEC = "2.2"
+NOTEBOOK_SPEC = "2.5"
 
 # /2.1: the `isolated_runtime` environment is the fleet's version 2.2 reference mechanism (ast-audio-classification-pipeline
 # and bioclip2-biodiversity-pipeline): a pinned uv wheel verified by size and SHA-256, a managed CPython of a fixed
