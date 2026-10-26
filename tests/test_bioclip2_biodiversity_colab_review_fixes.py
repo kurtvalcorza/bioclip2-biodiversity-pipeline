@@ -291,9 +291,9 @@ def test_section4_zip_escape_and_symlink_are_refused_without_writing(tmp_path, m
 
 
 def test_section4_upload_guards_are_actionable(tmp_path, monkeypatch):
-    with pytest.raises(RuntimeError, match="Upload exactly one .zip file"):
+    with pytest.raises(ValueError, match="upload exactly one .zip file"):
         _section4(tmp_path, monkeypatch, upload={})
-    with pytest.raises(RuntimeError, match="set BYOD_PATH"):
+    with pytest.raises(ValueError, match="set BYOD_PATH"):
         _section4(tmp_path, monkeypatch, colab=False)
     with pytest.raises(ValueError, match="must be a JSON object"):
         source_prompts = "not json"
