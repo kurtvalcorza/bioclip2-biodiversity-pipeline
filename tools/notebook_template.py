@@ -47,6 +47,8 @@ BADGES = [
     ("arXiv", "https://img.shields.io/badge/arXiv-2505.23883-b31b1b.svg", "https://arxiv.org/abs/2505.23883"),
 ]
 
+RUN_REF = 'the 2026-10-03 Colab T4 run of revision `bcce1a8` (notebook blob `5226299a`, recorded in `docs/release-verification.md`)'
+
 TEMPLATE = {
     "package": "bioclip2_biodiversity_pipeline",
     "repo_name": REPO,
@@ -78,14 +80,14 @@ TEMPLATE = {
         "scientific names (the model's own prior), measures a majority-class and a colour baseline, fine-tunes a linear head "
         "initialised from the zero-shot classifier with a predeclared learning-rate grid whose rate and epoch are chosen on "
         "the validation split (epoch 0, the zero-shot classifier itself, can win), evaluates accuracy, macro-F1 and AUROC on "
-        "the held-out test split, classifies six held-out images as new inputs, exports the adapter as safetensors with a "
+        "the held-out test split, runs single-image inference on six test-split photographs (already scored in Section 10, so this demonstrates the inference call, not accuracy on new data), exports the adapter as safetensors with a "
         "manifest, reloads that artifact into a fresh pipeline to verify prediction parity, and runs one change-one-thing "
         "activity on features already computed. The default path needs no repository clone, no DIMER worker or service, no "
         "credential, no upload dialog and no configuration edit (NOTEBOOK_SPEC 2.2 §5). A CUDA runtime is used automatically "
-        "when present. Timings: the code cells of this version took 71 s on a local Windows CPU check (24 threads, PyTorch 2.11 CPU build rather than the pinned 2.14, "
-        "float32, snapshot pre-staged, environment pre-installed); the previous version's Kaggle Tesla T4 run took 265.3 s "
-        "including the 1.71 GB download. No hosted run of this version is recorded yet, so on a hosted CPU runtime expect "
-        "roughly the local CPU figure (an estimate). Building the isolated environment and downloading the checkpoint come on "
+        "when present. Timings (measured on an earlier revision, not on this one): " + RUN_REF + " ran in one pass in 133.4 s "
+        "of code-cell time including the 1.71 GB download; a local Windows CPU check of the same revision took 71 s (24 threads, "
+        "PyTorch 2.11 CPU build rather than the pinned 2.14, float32, snapshot pre-staged, environment pre-installed). Hosted "
+        "runs of this revision are pending. Building the isolated environment and downloading the checkpoint come on "
         "top of these."
     ),
     "byod": (
@@ -117,6 +119,13 @@ TEMPLATE = {
         "taxon names share one space, it can classify a photograph against **any** list of species names with no training at "
         "all, and the upstream paper reports that this scaled training also produces representations that separate traits and "
         "ecological attributes it was never told about.\n\n"
+        "**Overlap with the pretraining data (DAT9).** The repository model card and the TreeOfLife-200M dataset card [4] "
+        "state that the pretraining images were assembled from GBIF, BIOSCAN-5M, EOL and FathomNet, and GBIF ingests "
+        "iNaturalist research-grade observations. The 48 sample photographs are research-grade iNaturalist observations of "
+        "four common species, so some or all of them are likely to be in the pretraining data, or near-duplicates of images "
+        "that are. This overlap is **inferred** from the upstream data descriptions; it has not been verified photo by photo. "
+        "Read every zero-shot and fine-tuned score on this sample with that in mind: a high score may partly reflect training "
+        "exposure and is not evidence of how the model does on photographs it has never seen.\n\n"
         "This tutorial exercises three things on real field data. The dataset is 48 photographs — 12 each of four North American "
         "sparrow species — from research-grade iNaturalist observations whose photos carry the CC0 licence, carried inside this "
         "notebook. The four species were chosen **before any result was seen** to make colour a weak cue: all four are streaked "
@@ -413,7 +422,7 @@ TEMPLATE = {
                 "not zero, and the within-species cosine is higher than the between-species one.\n\n"
                 "<details><summary>Check your reasoning</summary>Not exactly. The same batch twice is bit-identical, but one "
                 "image alone differs from its batched self by float noise: the cell only asserts the difference is below 1e-5, "
-                "which every recorded run has met. The vector is the same point for any practical purpose; it is not the same "
+                "which every recorded run (see `docs/release-verification.md`) has met. The vector is the same point for any practical purpose; it is not the same "
                 "bits, so compare embeddings with a tolerance, never with `==`.</details>\n\n"
                 "## 7. Zero-shot species classification — the model's own prior\n\n"
                 "`pipe.zero_shot` embeds one prompt per label (`PROMPT_TEMPLATE` with the scientific name filled in; `a photo of "
@@ -462,7 +471,7 @@ TEMPLATE = {
             "md": (
                 "**What to notice:** the test accuracy from names alone, the gap between scientific and common names, and the "
                 "scores the blank and noise images receive.\n\n"
-                "<details><summary>Check your reasoning</summary>Well above one in four: in the recorded runs the blank grey "
+                "<details><summary>Check your reasoning</summary>Well above one in four: in " + RUN_REF + " the blank grey "
                 "image got 0.53 and the noise image 0.85 for a single species. The softmax spreads 1.0 over the four names you "
                 "supplied and has no \"none of these\" option, and the logit scale of 100 turns small cosine differences into "
                 "large score differences. A high score therefore says \"this name fits better than the other three\", never "
@@ -489,7 +498,7 @@ TEMPLATE = {
         {
             "md": (
                 "**What to notice:** both baselines sit near 0.25, far below zero-shot.\n\n"
-                "<details><summary>Check your reasoning</summary>Chance. In the recorded runs the colour baseline scored 0.25 "
+                "<details><summary>Check your reasoning</summary>Chance. In " + RUN_REF + " the colour baseline scored 0.25 "
                 "accuracy (macro-F1 0.19) on the sample's test split — no better than predicting the majority class. That is the "
                 "design: the species were chosen so colour cannot separate them, so zero-shot's score cannot be explained by "
                 "colour. On your own data this number can be high, and then a high model score proves much less.</details>\n\n"
@@ -571,8 +580,8 @@ TEMPLATE = {
             "md": (
                 "**What to notice:** which rate won, at which epoch, and the `head_change` line — `relative_weight_change` (how "
                 "far the weights moved, as a fraction of their starting size) and `predictions_changed_vs_zero_shot`.\n\n"
-                "<details><summary>Check your reasoning</summary>In a local Windows CPU check of this version, validation chose "
-                "rate 1e-2 at epoch 6 (validation cross-entropy 0.0116 against 0.0203 at epoch 0). Accuracy cannot rise above "
+                "<details><summary>Check your reasoning</summary>In " + RUN_REF + " (and a local CPU check of the "
+                "same revision), validation chose rate 1e-2 at epoch 6 (validation cross-entropy 0.0116 against 0.0203 at epoch 0). Accuracy cannot rise above "
                 "8/8, but cross-entropy can still fall: the head becomes more confident in answers that were already right. The "
                 "weights moved by about 2 % and **no** training or validation prediction changed. So on this sample fine-tuning "
                 "sharpens the zero-shot classifier without changing what it decides — compare Section 13, where the names carry "
@@ -684,7 +693,7 @@ TEMPLATE = {
         {
             "md": (
                 "**What to notice:** `reload_parity: PASS` and the size of `max_abs_score_diff`.\n\n"
-                "<details><summary>Check your reasoning</summary>Exactly, here: the recorded runs report a maximum difference "
+                "<details><summary>Check your reasoning</summary>Exactly, here: " + RUN_REF + " reports a maximum difference "
                 "of 0.0, because the same float32 tensors are loaded into the same architecture on the same device. The cell "
                 "still allows 1e-5, because a reload on a different device or library build may differ in the last float bits; "
                 "a larger difference would mean the export and the evaluated model are not the same model.</details>\n\n"
@@ -789,7 +798,7 @@ TEMPLATE = {
     "closing": (
         "**What to notice:** the neutral-name run starts far below the scientific-name run and fine-tuning closes much of the "
         "gap; its `predictions_changed_vs_zero_shot` is large where Section 9's was zero.\n\n"
-        "<details><summary>Check your reasoning</summary>In a local Windows CPU check of this version, neutral names gave a "
+        "<details><summary>Check your reasoning</summary>In " + RUN_REF + ", neutral names gave a "
         "zero-shot test accuracy of 0.33; validation then chose rate 1e-2 at epoch 20, the weights moved by about 8 %, 17 of 36 "
         "training and validation predictions changed, and test accuracy rose to 0.92. With scientific names the same procedure "
         "moved the weights by about 2 % and changed nothing. Fine-tuning helps exactly where the starting classifier is wrong "
@@ -799,9 +808,11 @@ TEMPLATE = {
         "## Interpretation and limits\n\n"
         "The pretrained model separates four similarly coloured sparrow species from their scientific names alone, and a head "
         "fine-tuned from that starting point, with its learning rate and epoch chosen on validation, keeps the separation on an "
-        "independent split while changing none of the predictions. That is the claim: BioCLIP 2's joint space already encodes "
-        "fine-grained taxonomic structure that colour does not explain, and the adaptation procedure starts from that structure "
-        "and reports how far it moves from it. The test split has 12 photographs, the metrics come from one seeded holdout with "
+        "held-out split while changing none of the predictions. That is all this sample shows: on these 12 test photographs, "
+        "which are likely to overlap the pretraining data (see the overlap note at the top), BioCLIP 2's joint space separates "
+        "the four species where colour does not, and the adaptation procedure starts from that separation and reports how far "
+        "it moves from it. It does not show that the joint space encodes fine-grained taxonomic structure in general; that "
+        "claim would need photographs known to be outside the pretraining data. The test split has 12 photographs, the metrics come from one seeded holdout with "
         "no dispersion estimate, and the four species are common, well-photographed North American birds — the easy end of "
         "biodiversity. So a perfect score on the default sample run says the contract works on this sample, not that BioCLIP 2 "
         "identifies rare, cryptic or poorly represented taxa, and not that it reproduces any published benchmark. Section 13 "
@@ -870,13 +881,19 @@ TEMPLATE = {
         "- In Section 13, neutral names gave ___ before and ___ after fine-tuning, because ___.\n"
         "- One thing I would check before trusting these numbers on my own data: ___.\n\n"
         "## References\n\n"
-        "- Repository README: https://github.com/kurtvalcorza/bioclip2-biodiversity-pipeline/blob/main/README.md\n"
-        "- Repository model card: https://github.com/kurtvalcorza/bioclip2-biodiversity-pipeline/blob/main/MODEL_CARD.md\n"
-        "- Upstream model: https://huggingface.co/{MODEL_ID}\n"
-        "- Upstream code: https://github.com/Imageomics/bioclip-2\n"
-        "- Gu, J., Stevens, S., Campolongo, E. G., et al. (2025). BioCLIP 2: Emergent Properties from Scaling Hierarchical "
-        "Contrastive Learning. NeurIPS 2025. arXiv:2505.23883. https://arxiv.org/abs/2505.23883\n"
-        "- Sample photographs: iNaturalist research-grade observations with CC0 1.0 photo licences; per-image observation URLs "
-        "are recorded in the carried `sample_data` module."
+        "[1] J. Gu, S. Stevens, E. G. Campolongo, et al., \"BioCLIP 2: Emergent properties from scaling hierarchical "
+        "contrastive learning,\" in *Proc. Adv. Neural Inf. Process. Syst. (NeurIPS)*, 2025, arXiv:2505.23883. [Online]. "
+        "Available: https://arxiv.org/abs/2505.23883\n\n"
+        "[2] Imageomics Institute, \"BioCLIP 2,\" Hugging Face model repository. [Online]. Available: "
+        "https://huggingface.co/{MODEL_ID}\n\n"
+        "[3] Imageomics Institute, \"BioCLIP 2 source code,\" GitHub repository. [Online]. Available: "
+        "https://github.com/Imageomics/bioclip-2\n\n"
+        "[4] Imageomics Institute, \"TreeOfLife-200M,\" Hugging Face dataset card. [Online]. Available: "
+        "https://huggingface.co/datasets/imageomics/TreeOfLife-200M\n\n"
+        "[5] iNaturalist, \"Observations API\" (research-grade observations with CC0 1.0 photo licences; per-image "
+        "observation URLs are recorded in the carried `sample_data` module). [Online]. Available: "
+        "https://api.inaturalist.org/v1/observations\n\n"
+        "[6] K. Valcorza, \"bioclip2-biodiversity-pipeline: README and model card,\" GitHub repository. [Online]. "
+        "Available: https://github.com/kurtvalcorza/bioclip2-biodiversity-pipeline/blob/main/MODEL_CARD.md"
     ),
 }
