@@ -129,6 +129,88 @@ BAD_NAME, BAD_BYTES, BAD_RULE, DISCARDED = "housing.csv", HOUSING, "missing requ
 _UNUSED = (io, zipfile)
 
 
+# ---- the catch is narrow: only bad input is refused; an internal TypeError/OSError keeps its traceback ------------
+
+
+def _run_section4(tmp_path, monkeypatch, path, ns=None, **overrides):
+    import bioclip2_biodiversity_pipeline as pkg
+
+    monkeypatch.chdir(tmp_path)
+    ns = ns if ns is not None else {name: getattr(pkg, name) for name in pkg.__all__}
+    ns.update(overrides)
+    exec(compile(refusing_section4_source(path, json.dumps(SAMPLE_CLASS_PROMPTS)), "<section 4>", "exec"), ns)
+    return ns
+
+
+def _one_refused_line(tmp_path, monkeypatch, path, **overrides) -> str:
+    with pytest.raises(ValueError) as info:
+        _run_section4(tmp_path, monkeypatch, path, **overrides)
+    assert getattr(info.value, "dimer_refusal", False) is True, repr(info.value)
+    lines = info.value._render_traceback_()
+    assert len(lines) == 1 and lines[0].startswith("Refused: ") and "Traceback" not in lines[0], lines
+    return lines[0]
+
+
+def test_the_byod_catch_is_narrow_in_the_notebook_source():
+    src = CELLS[SEC4].split("write_dataset_csv(", 1)[0]  # the BYOD try block
+    caught = re.findall(r"^\s*except (.+?)(?: as \w+)?:$", src, flags=re.M)
+    assert caught.count("(OSError, zipfile.BadZipFile)") == 2 and caught.count("TypeError") == 1, caught
+    assert "except (TypeError" not in src and src.count("except OSError as exc:") == 1
+    assert src.count("    try:\n                    byod_source = extract_zip(") == 2
+    assert "        try:\n            records = load_byod_dataset(byod_source)\n        except OSError as exc:\n" in src
+    assert "\nexcept ValueError as exc:\n    if not USE_BYOD:\n        raise" in src
+
+
+def test_real_bad_input_is_still_one_refused_line(tmp_path, monkeypatch):
+    table = tmp_path / "table.json"
+    table.write_text("[1, 2]", encoding="utf-8")
+    line = _one_refused_line(tmp_path, monkeypatch, str(table))
+    assert line.startswith("Refused: table.json: a record is malformed (record[0] must be a mapping, got int)"), line
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as zf:
+        zf.writestr("song_sparrow/a.jpg", b"x" * 64)
+    data = bytearray(buffer.getvalue())
+    data[data.index(b"x" * 64)] = ord("y")  # the stored bytes no longer match their CRC-32
+    bad = tmp_path / "bad.zip"
+    bad.write_bytes(bytes(data))
+    line = _one_refused_line(tmp_path, monkeypatch, str(bad))
+    assert line.startswith("Refused: bad.zip: the zip cannot be read (BadZipFile: Bad CRC-32"), line
+    assert line.endswith("Fix the file, then select this cell and choose Runtime → Run after."), line
+
+
+def test_an_unreadable_byod_file_is_still_one_refused_line(tmp_path, monkeypatch):
+    good = tmp_path / "good.zip"
+    good.write_bytes(_folder_zip(7))
+
+    def unreadable(_path):
+        raise PermissionError(13, "Permission denied", str(_path))
+
+    line = _one_refused_line(tmp_path, monkeypatch, str(good), load_byod_dataset=unreadable)
+    assert line.startswith("Refused: good.zip: the file cannot be read (PermissionError: "), line
+
+
+@pytest.mark.parametrize("error", [TypeError("internal helper bug"), OSError("internal I/O bug")], ids=["TypeError", "OSError"])
+def test_an_internal_error_after_the_loader_keeps_its_traceback(tmp_path, monkeypatch, error):
+    import traceback
+
+    ns = _section4(tmp_path, monkeypatch, upload={"good.zip": _folder_zip(7)})
+    earlier = ns["train_records"]
+    report = tmp_path / "outputs" / f"{STEM}_evaluation_report.json"
+    report.write_text("{}", encoding="utf-8")
+    good = tmp_path / "good.zip"
+    good.write_bytes(_folder_zip(7))
+
+    def broken_split(records, **kwargs):
+        raise error
+
+    with pytest.raises(type(error)) as info:
+        _run_section4(tmp_path, monkeypatch, str(good), ns=ns, split_dataset=broken_split)
+    assert info.value is error and not getattr(info.value, "dimer_refusal", False)
+    rendered = "".join(traceback.format_exception(info.value))
+    assert rendered.startswith("Traceback") and "broken_split" in rendered and "Refused:" not in rendered
+    assert ns["train_records"] is earlier and report.exists()  # nothing is cleared for an internal error
+
+
 # ---- the router: a refusal crosses the worker boundary as one line; a genuine error keeps its traceback -----
 
 
