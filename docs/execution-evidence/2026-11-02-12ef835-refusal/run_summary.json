@@ -1,0 +1,74 @@
+{
+  "repo": "bioclip2-biodiversity-pipeline",
+  "sha": "12ef835433dbbff5d70a62b268baf5da0599e2dc",
+  "notebook": "tutorials/bioclip2_biodiversity_colab.ipynb",
+  "blob": "2a6e68a34fc65613ae9f55947d1e80e2a9bc1fb0",
+  "gpu": "T4",
+  "session": "suite-bioclip2-12ef835-4b68",
+  "started_utc": "2026-11-02T15:04:41+00:00",
+  "runner": "Colab CLI `colab exec -f` on a fresh session (not a browser Run all)",
+  "overrides": [
+    {
+      "name": "USE_BYOD",
+      "from": "False",
+      "to": "True"
+    },
+    {
+      "name": "BYOD_PATH",
+      "from": "''",
+      "to": "'/content/sample_data/california_housing_test.csv'"
+    }
+  ],
+  "run_copy_blob": "4118d4c13fd084c46bf04b80155989bcd9048d21",
+  "run_copy_sha256": "f22008e1d9e124e8d6c58f6f2ece18eba5150ac60dc9bfacab4db2724e80c657",
+  "run_copy_note": "refusal run: the run copy is the committed notebook with the listed assignment overrides, cut immediately after the refusal cell and re-serialised (nbformat layout); input_unchanged compares against that copy",
+  "truncated_after_cell": "bioclip2_biodiversity-21",
+  "refusal_cell_ref": "bioclip2_biodiversity-21",
+  "refusal_cell_index": 10,
+  "cells_dropped": 19,
+  "code_cells_dropped": 9,
+  "original_sha256": "fdab45288013a09d74cc7adb7738cedd89f90919add20aeab1ac7faa81c7de44",
+  "status": "[suite-bioclip2-12ef835-4b68] gpu-t4-s-ass1a0-2y7wvostg3lue | Hardware: T4 | Shape: Standard | Variant: GPU | Status: IDLE",
+  "exec_exit_code": 0,
+  "stopped": true,
+  "stop_verified": true,
+  "wall_s": 146.0,
+  "input_unchanged": true,
+  "executed_file": "bioclip2_biodiversity_colab_12ef835_colab-cli-t4_output.ipynb",
+  "log_cells": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "log_total": 10,
+  "code_cells": 10,
+  "executed_cells": 5,
+  "errors": [
+    {
+      "cell": "bioclip2_biodiversity-21",
+      "ename": "IsolatedCellRefusal",
+      "evalue": "california_housing_test.csv: CSV header ['longitude', 'latitude', 'housing_median_age', 'total_rooms', 'total_bedrooms', 'population', 'households', 'median_income', 'median_house_value'] is missing required column(s) ['id', 'image', 'label']. Fix the file, then select this cell and choose Runtime \u2192"
+    }
+  ],
+  "execution_counts": [],
+  "sequential": null,
+  "executed_sha256": "2a28fd5eab516acb5185cabb6c4ed44723bff4141f074e6caa29b229272c222d",
+  "log_sequential_complete": true,
+  "mode": "expect_refusal",
+  "refusal_line": "Refused: california_housing_test.csv: CSV header ['longitude', 'latitude', 'housing_median_age', 'total_rooms', 'total_bedrooms', 'population', 'households', 'median_income', 'median_house_value'] is missing required column(s) ['id', 'image', 'label']. Fix the file, then select this cell and choose Runtime \u2192 Run after.",
+  "halting_cell_index": 10,
+  "halting_cell_id": "bioclip2_biodiversity-21",
+  "error_cells": [
+    10
+  ],
+  "refusal_fail_reasons": [],
+  "refusal_ok": true,
+  "verdict": "PASS"
+}
